@@ -75,7 +75,6 @@ const parseQueryTerm = (queryTerm, env) => {
 
 const parseQuery = (query, env) => {
   if (env === undefined) {
-    console.log(query)
     return parseQuery(query, {})
   }
 
@@ -167,7 +166,6 @@ export function makeRootQuery(env, query) {
 }
 
 export function parseChildren(term, env, _state = state, _parsers = parsers) {
-  console.log(term)
   const [, , ...query] = term
   const newEnv = { ...env, parentEnv: { ...env, queryKey: term[0] } }
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
