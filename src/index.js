@@ -65,7 +65,8 @@ export function clearRegistry() {
 }
 
 const parseQueryTerm = (queryTerm, env) => {
-  const mutateFn = parsers.mutate && parsers.mutate[queryTerm[0]]
+  const mutateFn = (parsers.mutate && parsers.mutate[queryTerm[0]]) ||
+        (parsers.remote && parsers.remote[queryTerm[0]])
   if (mutateFn) {
     mutateFn(queryTerm, env, state)
   } else {
@@ -153,7 +154,7 @@ export function loopRootQuery(queryTerm, env) {
     const newEnv = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
     delete newEnv.parentEnv
     delete newEnv.queryKey
-    return loopRootQuery([env.queryKey, newEnv, queryTerm])
+    return loopRootQuery([env.queryKey, newEnv, queryTerm], parentEnv)
   } else {
     return queryTerm
   }
