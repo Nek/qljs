@@ -1,12 +1,12 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren } from './index'
-import createMultimethod from './multimethod'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod } from './index'
+
 
 const dispatch = ([first]) => first
 const noMatch = term => {
   throw new Error('No match for ' + term)
 }
 
-let read = createMultimethod(dispatch)
+let read = multimethod(dispatch)
 read.name = (term, { personId }, state) => {
   return state.people[personId].name
 }
