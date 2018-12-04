@@ -65,8 +65,7 @@ export function clearRegistry() {
 }
 
 const parseQueryTerm = (queryTerm, env) => {
-  const mutateFn = (parsers.mutate && parsers.mutate[queryTerm[0]]) ||
-        (parsers.remote && parsers.remote[queryTerm[0]])
+  const mutateFn = (parsers.mutate && parsers.mutate[queryTerm[0]])
   if (mutateFn) {
     mutateFn(queryTerm, env, state)
   } else {
