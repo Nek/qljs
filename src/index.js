@@ -1,7 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { first, zip } from './utils'
-
 const noMatch = term => {
   throw new Error('No match for ' + term)
 }
@@ -66,6 +65,7 @@ export function clearRegistry() {
 
 const parseQueryTerm = (queryTerm, env) => {
   const mutateFn = (parsers.mutate && parsers.mutate[queryTerm[0]])
+  const remoteFn = (parsers.remote && parsers.remote[queryTerm[0]])
   if (mutateFn) {
     mutateFn(queryTerm, env, state)
   } else {
@@ -103,9 +103,10 @@ export function parseQueryIntoMap(
   }
 }
 
-function parseQueryRemote(query) {
+export function parseQueryRemote(query) {
+  console.log('parse', query)
   return query.reduce((acc, item) => {
-    if (parsers.remote[first(item)]) {
+    if (parsers.remote[item[0]]) {
       const v = parsers.remote(item, state)
       if (v) {
         return [...acc, v]
@@ -118,12 +119,13 @@ function parseQueryRemote(query) {
   }, [])
 }
 
-export function parseChildrenRemote([dispatchKey, params, ...chi]) {
-  const chiRemote = parseQueryRemote(chi)
-  return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote]
+export function parseChildrenRemote([dispatchKey, params, ...children]) {
+  const childrenRemote = parseQueryRemote(children)
+  console.log(childrenRemote)
+  return Array.isArray(childrenRemote) && [...[dispatchKey, params], ...childrenRemote]
 }
 
-function parseQueryTermSync(queryTerm, result, env) {
+export function parseQueryTermSync(queryTerm, result, env) {
   const syncFun = parsers.sync[queryTerm[0]]
   if (syncFun) {
     syncFun(queryTerm, result, env, state)
@@ -132,7 +134,7 @@ function parseQueryTermSync(queryTerm, result, env) {
   }
 }
 
-function performRemoteQuery(query) {
+export function performRemoteQuery(query) {
   if (Array.isArray(query) && remoteHandler) {
     remoteHandler(query, results => {
       zip(query, results).map(([k, v]) => parseQueryTermSync(k, v, {}))
@@ -141,7 +143,7 @@ function performRemoteQuery(query) {
   }
 }
 
-function mapDelta(map1, map2) {
+export function mapDelta(map1, map2) {
   return Object.entries(map2)
     .filter(([k, v]) => v !== map1[k])
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {})
@@ -186,7 +188,7 @@ export function createInstance(Component, atts) {
     ...atts,
     env,
     query,
-    key: env.id ? env.id : '_',
+    // key: env.id ? env.id : '_',
   })
 }
 

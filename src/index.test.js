@@ -1,4 +1,4 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod } from './index'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery } from './index'
 
 
 const dispatch = ([first]) => first
@@ -123,6 +123,28 @@ describe('ql', () => {
         env: expect.anything(),
         query,
       })
+    })
+  })
+  describe('makeRootQuery', () => {
+    it(`if at the root level and the environment is empty, evaluates to itself`, () => {
+      expect(makeRootQuery({}, [['foo']])).toEqual([['foo']])
+    })
+    it(`if the 'bar' parser set an env variable of id=55, need to add that to the root query`, () => {
+      expect(makeRootQuery({parentEnv: {queryKey: 'bar', id: 55}}, [['foo']])).toEqual([['bar', {id: 55}, ['foo']]])
+    })
+    it(`if the environment has nested parent environments, all env variables end up in the query, but with duplication removed`, () => {
+      expect(makeRootQuery({parentEnv: {queryKey: 'bar',
+                                        parentEnv: {queryKey: 'baz',
+                                                    idB: 66,
+                                                    idA: 77},
+                                        idA: 55,
+                                        idB: 66,
+                                       }},
+                            [['foo']]
+                           )).toEqual(
+                             [
+                               ['baz', {idB: 66, idA: 77},
+                                ['bar', {idA: 55}, ['foo']]]])
     })
   })
 })
