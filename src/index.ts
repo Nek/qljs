@@ -1,14 +1,15 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { first, zip } from './utils'
-const noMatch = term => {
+
+const noMatch = (term: string) => {
   throw new Error('No match for ' + term)
 }
 
 export function multimethod(dispatch) {
   const dict = {}
   if (typeof noMatch == 'function') {
-    dict.noMatch = noMatch
+    dict['noMatch'] = noMatch
   }
 
   return new Proxy(
@@ -64,8 +65,7 @@ export function clearRegistry() {
 }
 
 const parseQueryTerm = (queryTerm, env) => {
-  const mutateFn = (parsers.mutate && parsers.mutate[queryTerm[0]])
-  const remoteFn = (parsers.remote && parsers.remote[queryTerm[0]])
+  const mutateFn = parsers.mutate && parsers.mutate[queryTerm[0]]
   if (mutateFn) {
     mutateFn(queryTerm, env, state)
   } else {
@@ -103,10 +103,9 @@ export function parseQueryIntoMap(
   }
 }
 
-export function parseQueryRemote(query) {
-  console.log('parse', query)
+function parseQueryRemote(query) {
   return query.reduce((acc, item) => {
-    if (parsers.remote[item[0]]) {
+    if (parsers.remote[first(item)]) {
       const v = parsers.remote(item, state)
       if (v) {
         return [...acc, v]
@@ -119,13 +118,12 @@ export function parseQueryRemote(query) {
   }, [])
 }
 
-export function parseChildrenRemote([dispatchKey, params, ...children]) {
-  const childrenRemote = parseQueryRemote(children)
-  console.log(childrenRemote)
-  return Array.isArray(childrenRemote) && [...[dispatchKey, params], ...childrenRemote]
+export function parseChildrenRemote([dispatchKey, params, ...chi]) {
+  const chiRemote = parseQueryRemote(chi)
+  return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote]
 }
 
-export function parseQueryTermSync(queryTerm, result, env) {
+function parseQueryTermSync(queryTerm, result, env) {
   const syncFun = parsers.sync[queryTerm[0]]
   if (syncFun) {
     syncFun(queryTerm, result, env, state)
@@ -134,7 +132,7 @@ export function parseQueryTermSync(queryTerm, result, env) {
   }
 }
 
-export function performRemoteQuery(query) {
+function performRemoteQuery(query) {
   if (Array.isArray(query) && remoteHandler) {
     remoteHandler(query, results => {
       zip(query, results).map(([k, v]) => parseQueryTermSync(k, v, {}))
@@ -149,7 +147,7 @@ export function mapDelta(map1, map2) {
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {})
 }
 
-export function loopRootQuery(queryTerm, env) {
+export function loopRootQuery(queryTerm, env?) {
   if (env) {
     const parentEnv = env.parentEnv
     const newEnv = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
@@ -188,7 +186,7 @@ export function createInstance(Component, atts) {
     ...atts,
     env,
     query,
-    // key: env.id ? env.id : '_',
+    key: env.id ? env.id : '_',
   })
 }
 

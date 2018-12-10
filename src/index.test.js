@@ -1,4 +1,4 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery } from './index'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta } from './index'
 
 
 const dispatch = ([first]) => first
@@ -130,6 +130,16 @@ describe('ql', () => {
         env: expect.anything(),
         query,
       })
+    })
+  })
+  describe('mapDelta', () => {
+    it('finds minimal X such that {...map1, ...X} equals {...map1, ...map2}', () => {
+      expect(mapDelta({a:1},{b:2})).toEqual({b:2})
+      expect(mapDelta({a:1},{a:2, b:2})).toEqual({a:2, b:2})
+      expect(mapDelta({a:1, b:2},{a:2, b:2})).toEqual({a:2})
+      expect(mapDelta({a:1},{a:1})).toEqual({})
+      
+      
     })
   })
   describe('makeRootQuery', () => {
