@@ -6,27 +6,10 @@ const noMatch = term => {
   throw new Error('No match for ' + term)
 }
 
-let read = multimethod(dispatch)
-read.name = (term, { personId }, state) => {
-  return state.people[personId].name
-}
-read.age = (term, { personId }, state) => {
-  return state.people[personId].age
-}
-read.people = (term, env, state) => {
-  const [, { personId }] = term
-  if (personId) {
-    return parseChildren(term, { ...env, personId })
-  } else {
-    const res = Object.keys(state.people).map(personId =>
-      parseChildren(term, { ...env, personId }),
-    )
-    return res
-  }
-}
-
 describe('ql', () => {
   let state
+  let sync, read, mutate, remote
+
 
   beforeEach(() => {
     state = {
@@ -35,6 +18,30 @@ describe('ql', () => {
         1: { name: 'Alya', age: 32 },
       },
     }
+    let read = multimethod(dispatch)
+    let mutate = multimethod(dispatch)
+    let sync = multimethod(dispatch)
+    let remote = multimethod(dispatch)
+
+    read.name = (term, { personId }, state) => {
+      return state.people[personId].name
+    }
+    read.age = (term, { personId }, state) => {
+      return state.people[personId].age
+    }
+    read.people = (term, env, state) => {
+      const [, { personId }] = term
+      if (personId) {
+        return parseChildren(term, { ...env, personId })
+      } else {
+        const res = Object.keys(state.people).map(personId =>
+                                                  parseChildren(term, { ...env, personId }),
+                                                 )
+        return res
+      }
+    }
+
+
     mount({ state, parsers: { read }, remoteHandler: v => v })
   })
 
@@ -145,6 +152,12 @@ describe('ql', () => {
                              [
                                ['baz', {idB: 66, idA: 77},
                                 ['bar', {idA: 55}, ['foo']]]])
+    })
+  })
+  describe('transact', () => {
+
+    beforeEach(() => {
+
     })
   })
 })
