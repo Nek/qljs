@@ -1,18 +1,18 @@
-import React from 'react'
+import React, {ReactElement} from 'react'
 import ReactDOM from 'react-dom'
-import { first, zip } from './utils'
+import { zip } from './utils'
 
-const noMatch = (term: string) => {
+const noMatch = (term: string):void => {
   throw new Error('No match for ' + term)
 }
 
-export function multimethod(dispatch) {
+export function multimethod(dispatch: Function): Function {
   const dict = {}
   if (typeof noMatch == 'function') {
     dict['noMatch'] = noMatch
   }
 
-  return new Proxy(
+  return new Proxy<Function>(
     () => {
       throw new Error('No match')
     },
@@ -49,31 +49,62 @@ const isMutationQuery = ([tag]) => {
   return parsers.mutate[tag] ? true : false
 }
 
+type Query = Term[]
+
+interface Term {
+  0: string;
+  1?: object | Term;
+  2?: Term;
+  4?: Term;
+  5?: Term;
+  6?: Term;
+  7?: Term;
+  8?: Term;
+  9?: Term;
+  10?: Term;
+  11?: Term;
+  12?: Term;
+  13?: Term;
+  14?: Term;
+  15?: Term;
+  16?: Term;
+  17?: Term;
+  18?: Term;
+
+}
+
+
 const registry = new Map()
 
-export function query(query, key) {
+export function query(query: Query, key: any): any {
   registry.set(key, query)
   return key
 }
 
-export function getQuery(key) {
+
+export function getQuery(key: any): Query {
   return registry.get(key)
 }
 
-export function clearRegistry() {
+export function clearRegistry(): void {
   registry.clear()
 }
 
-const parseQueryTerm = (queryTerm, env) => {
+interface Env {
+  parentEnv?: Env;
+  queryKey?: string;
+}
+
+const parseQueryTerm = (queryTerm: Term, env: Env): object => {
   const mutateFn = parsers.mutate && parsers.mutate[queryTerm[0]]
   if (mutateFn) {
-    mutateFn(queryTerm, env, state)
+    return mutateFn(queryTerm, env, state)
   } else {
     return parsers.read(queryTerm, env, state)
   }
 }
 
-const parseQuery = (query, env) => {
+const parseQuery = (query: Query, env: Env): object[] => {
   if (env === undefined) {
     return parseQuery(query, {})
   }
@@ -83,13 +114,19 @@ const parseQuery = (query, env) => {
   })
 }
 
+interface QueryIntoMap {
+  env: Env,
+  query: Query,
+  [index: string]: object,
+}
+
 export function parseQueryIntoMap(
-  query,
-  env,
-  _state = state,
-  _parsers = parsers,
-) {
-  const queryName = query.map(first)
+  query: Query,
+  env: Env,
+  _state: object = state,
+  _parsers: {[parser: string]: Function} = parsers,
+): QueryIntoMap {
+  const queryName = query.map(v => v[0])
   const queryResult = parseQuery(query, env)
   const atts = zip(queryName, queryResult).reduce(
     (res, [k, v]) => ({ ...res, [k]: v }),
@@ -103,9 +140,10 @@ export function parseQueryIntoMap(
   }
 }
 
-function parseQueryRemote(query) {
+
+function parseQueryRemote (query: Query): object[] {
   return query.reduce((acc, item) => {
-    if (parsers.remote[first(item)]) {
+    if (parsers.remote[item[0]]) {
       const v = parsers.remote(item, state)
       if (v) {
         return [...acc, v]
@@ -141,16 +179,16 @@ function performRemoteQuery(query) {
   }
 }
 
-export function mapDelta(map1, map2) {
+export function mapDelta(map1:{}, map2:{}):{} {
   return Object.entries(map2)
     .filter(([k, v]) => v !== map1[k])
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {})
 }
 
-export function loopRootQuery(queryTerm, env?) {
+export function loopRootQuery(queryTerm: Term, env?: Env): Term {
   if (env) {
     const parentEnv = env.parentEnv
-    const newEnv = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
+    const newEnv: Env = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
     delete newEnv.parentEnv
     delete newEnv.queryKey
     return loopRootQuery([env.queryKey, newEnv, queryTerm], parentEnv)
@@ -159,7 +197,7 @@ export function loopRootQuery(queryTerm, env?) {
   }
 }
 
-export function makeRootQuery(env, query) {
+export function makeRootQuery(env: Env, query: Query) {
   return query.map(queryTerm => {
     return loopRootQuery(queryTerm, env.parentEnv)
   })
@@ -180,17 +218,17 @@ export function transact(props, query, _state = state, _parsers = parsers) {
   refresh(false)
 }
 
-export function createInstance(Component, atts) {
+export function createInstance(Component, atts: {env, query}, key?: string | number) {
   const { env, query } = atts
   return React.createElement(Component, {
     ...atts,
     env,
     query,
-    key: env.id ? env.id : '_',
+    key,
   })
 }
 
-let refresh = isRemoteQuery => {
+function refresh(isRemoteQuery: boolean): void {
   const query = getQuery(Component)
   const atts = parseQueryIntoMap(query, {})
   if (isRemoteQuery) {
@@ -208,19 +246,4 @@ export function mount({ state: _st, parsers: _parsers, remoteHandler: _rh }) {
     element = _el
     refresh(true)
   }
-}
-
-export function _mount({
-  component,
-  element: _el,
-  state: _st,
-  remoteHandler: _rh,
-  parsers: _parsers,
-}) {
-  Component = component
-  element = _el
-  state = _st
-  remoteHandler = _rh
-  parsers = _parsers
-  refresh(true)
 }
