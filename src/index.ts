@@ -1,6 +1,5 @@
 import React, {ReactElement} from 'react'
 import ReactDOM from 'react-dom'
-import { zip } from './utils'
 
 const noMatch = (term: string):void => {
   throw new Error('No match for ' + term)
@@ -52,6 +51,7 @@ const isMutationQuery = ([tag]) => {
 type Query = Term[]
 
 interface Term {
+  [Symbol.iterator]()
   0: string;
   1?: object | Term;
   2?: Term;
@@ -120,18 +120,18 @@ interface QueryIntoMap {
   [index: string]: object,
 }
 
+function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...res, [k]: v })}
+
 export function parseQueryIntoMap(
   query: Query,
   env: Env,
   _state: object = state,
   _parsers: {[parser: string]: Function} = parsers,
 ): QueryIntoMap {
-  const queryName = query.map(v => v[0])
+  const queryNames: string[] = query.map(v => v[0])
   const queryResult = parseQuery(query, env)
-  const atts = zip(queryName, queryResult).reduce(
-    (res, [k, v]) => ({ ...res, [k]: v }),
-    {},
-  )
+
+  const atts = zip(queryNames, queryResult).reduce(makeAtts, {})
 
   return {
     env,
@@ -141,7 +141,7 @@ export function parseQueryIntoMap(
 }
 
 
-function parseQueryRemote (query: Query): object[] {
+function parseQueryRemote (query: Query) {
   return query.reduce((acc, item) => {
     if (parsers.remote[item[0]]) {
       const v = parsers.remote(item, state)
@@ -170,7 +170,10 @@ function parseQueryTermSync(queryTerm, result, env) {
   }
 }
 
-function performRemoteQuery(query) {
+export function zip<T, U>(a1:Array<T>, a2:Array<U>):(T | U)[][]
+  {return a1.map((x, i) => [x, a2[i]])}
+
+function performRemoteQuery(query: Query) {
   if (Array.isArray(query) && remoteHandler) {
     remoteHandler(query, results => {
       zip(query, results).map(([k, v]) => parseQueryTermSync(k, v, {}))
@@ -203,13 +206,13 @@ export function makeRootQuery(env: Env, query: Query) {
   })
 }
 
-export function parseChildren(term, env, _state = state, _parsers = parsers) {
+export function parseChildren(term: Term, env: Env, _state = state, _parsers = parsers) {
   const [, , ...query] = term
   const newEnv = { ...env, parentEnv: { ...env, queryKey: term[0] } }
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
 }
 
-export function transact(props, query, _state = state, _parsers = parsers) {
+export function transact(props: {env, query}, query: Query, _state = state, _parsers = parsers) {
   const { env, query: componentQuery } = props
   const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
   parseQuery(rootQuery, env)
