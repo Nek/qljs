@@ -1,4 +1,4 @@
-import React, {ReactElement} from 'react'
+import React, { ReactElement, DOMElement} from 'react'
 import ReactDOM from 'react-dom'
 
 const noMatch = (term: string):void => {
@@ -50,8 +50,7 @@ const isMutationQuery = ([tag]) => {
 
 type Query = Term[]
 
-interface Term {
-  [Symbol.iterator]()
+interface Term extends Array<any> {
   0: string;
   1?: object | Term;
   2?: Term;
@@ -70,13 +69,35 @@ interface Term {
   16?: Term;
   17?: Term;
   18?: Term;
-
 }
 
+type FoldedQuery = FoldedTerm[]
+
+interface FoldedTerm extends Array<any> {
+  [Symbol.iterator]()
+  0: string;
+  1?: object | FoldedTerm | Function | React.Component;
+  2?: FoldedTerm;
+  4?: FoldedTerm;
+  5?: FoldedTerm;
+  6?: FoldedTerm;
+  7?: FoldedTerm;
+  8?: FoldedTerm;
+  9?: FoldedTerm;
+  10?: FoldedTerm;
+  11?: FoldedTerm;
+  12?: FoldedTerm;
+  13?: FoldedTerm;
+  14?: FoldedTerm;
+  15?: FoldedTerm;
+  16?: FoldedTerm;
+  17?: FoldedTerm;
+  18?: FoldedTerm;
+}
 
 const registry = new Map()
 
-export function query(query: Query, key: any): any {
+export function query(query: Query, key: Function | React.Component): Function | React.Component {
   registry.set(key, query)
   return key
 }
@@ -212,7 +233,7 @@ export function parseChildren(term: Term, env: Env, _state = state, _parsers = p
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
 }
 
-export function transact(props: {env, query}, query: Query, _state = state, _parsers = parsers) {
+export function transact(props, query: Query, _state = state, _parsers = parsers) {
   const { env, query: componentQuery } = props
   const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
   parseQuery(rootQuery, env)
@@ -231,8 +252,33 @@ export function createInstance(Component, atts: {env, query}, key?: string | num
   })
 }
 
+export function componentToQuery(something: Query): Query {
+  const query: Query = unfoldQuery(getQuery(something))
+  return query || something
+}
+
+export function unfoldQueryTerm(foldedTerm: FoldedTerm): Term {
+  let foldedTerms: Array<FoldedTerm>
+  const [tag, maybeParams] = foldedTerm
+  let res:Term
+  if (maybeParams && (Object.getPrototypeOf(maybeParams) === Object.prototype)) {
+    [,,...foldedTerms] = foldedTerm
+    res = [tag, maybeParams]
+  } else {
+    [,...foldedTerms] = foldedTerm
+    res = [tag]
+  }
+  const terms: Array<Term> = foldedTerms.map(componentToQuery).reduce(
+    (res: Array<Term>, arr) => ([...res, ...arr]), [])
+  return res.length === 1 ? [res[0], ...terms] : [res[0], res[1], ...terms]
+}
+
+export function unfoldQuery(query: FoldedQuery): Query {
+  return query.map(unfoldQueryTerm)
+}
+
 function refresh(isRemoteQuery: boolean): void {
-  const query = getQuery(Component)
+  const query = unfoldQuery(getQuery(Component))
   const atts = parseQueryIntoMap(query, {})
   if (isRemoteQuery) {
     performRemoteQuery(parseQueryRemote(query))
@@ -244,7 +290,7 @@ export function mount({ state: _st, parsers: _parsers, remoteHandler: _rh }) {
   state = _st
   parsers = _parsers
   remoteHandler = _rh
-  return ({ component, element: _el }) => {
+  return ({ component, element: _el }: {component: Function | React.Component, element: HTMLElement}) => {
     Component = component
     element = _el
     refresh(true)

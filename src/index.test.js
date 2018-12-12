@@ -1,4 +1,4 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta } from './index'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta, unfoldQuery, query } from './index'
 
 
 const dispatch = ([first]) => first
@@ -138,8 +138,8 @@ describe('ql', () => {
       expect(mapDelta({a:1},{a:2, b:2})).toEqual({a:2, b:2})
       expect(mapDelta({a:1, b:2},{a:2, b:2})).toEqual({a:2})
       expect(mapDelta({a:1},{a:1})).toEqual({})
-      
-      
+
+
     })
   })
   describe('makeRootQuery', () => {
@@ -164,10 +164,19 @@ describe('ql', () => {
                                 ['bar', {idA: 55}, ['foo']]]])
     })
   })
-  describe('transact', () => {
-
-    beforeEach(() => {
-
+  describe(`unfoldQuery`, () => {
+    it('unfolds simple terms to themselves', () => {
+      expect(unfoldQuery([['data']])).toEqual([['data']])
+      expect(unfoldQuery([['data'], ['moreData']])).toEqual([['data'], ['moreData']])
+    })
+    it('unfolds simple terms with params to itself', () => {
+      expect(unfoldQuery([['data', {stuff:1}]])).toEqual([['data', {stuff:1}]])
+    })
+    it('unfolds a term with chidlren query', () => {
+      const F = () => {}
+      query([['data']], F)
+      expect(unfoldQuery([['some', F]])).toEqual([['some', ['data']]])
+      clearRegistry()
     })
   })
 })

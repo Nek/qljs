@@ -1,7 +1,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
-  "transform": {
+  transform: {
       "^.+\\.(t|j)sx?$": "ts-jest"
-    }
+  },
+  verbose: true,
+  coverageReporters: ['lcov']
 };
