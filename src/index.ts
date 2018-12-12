@@ -1,11 +1,14 @@
-import React, { ReactElement, DOMElement} from 'react'
+import React, { ReactElement, DOMElement, FunctionComponent} from 'react'
 import ReactDOM from 'react-dom'
 
 const noMatch = (term: string):void => {
   throw new Error('No match for ' + term)
 }
 
-export function multimethod(dispatch: Function): Function {
+interface Multimethod extends Function {
+}
+
+export function multimethod(dispatch: Function): Multimethod {
   const dict = {}
   if (typeof noMatch == 'function') {
     dict['noMatch'] = noMatch
@@ -16,7 +19,7 @@ export function multimethod(dispatch: Function): Function {
       throw new Error('No match')
     },
     {
-      set(target, property, value) {
+      set(target , property, value) {
         dict[property] = value
         return true
       },
@@ -38,21 +41,17 @@ export function multimethod(dispatch: Function): Function {
 }
 
 
-let Component
-let element
-let state
-let remoteHandler
-let parsers
-
-const isMutationQuery = ([tag]) => {
-  return parsers.mutate[tag] ? true : false
-}
+let Component: React.FunctionComponent | React.ComponentClass
+let element: HTMLElement
+let state: object
+let remoteHandler: Function
+let parsers: {read: Multimethod, mutate: Multimethod, remote: Multimethod, sync: Multimethod}
 
 type Query = Term[]
 
 interface Term extends Array<any> {
   0: string;
-  1?: object | Term;
+  1: object;
   2?: Term;
   4?: Term;
   5?: Term;
@@ -71,28 +70,29 @@ interface Term extends Array<any> {
   18?: Term;
 }
 
-type FoldedQuery = FoldedTerm[]
+type FoldedQuery = (FoldedTerm | string)[]
+
+type FoldedTermItem = FoldedTerm | React.FunctionComponent | React.ComponentClass;
 
 interface FoldedTerm extends Array<any> {
-  [Symbol.iterator]()
   0: string;
-  1?: object | FoldedTerm | Function | React.Component;
-  2?: FoldedTerm;
-  4?: FoldedTerm;
-  5?: FoldedTerm;
-  6?: FoldedTerm;
-  7?: FoldedTerm;
-  8?: FoldedTerm;
-  9?: FoldedTerm;
-  10?: FoldedTerm;
-  11?: FoldedTerm;
-  12?: FoldedTerm;
-  13?: FoldedTerm;
-  14?: FoldedTerm;
-  15?: FoldedTerm;
-  16?: FoldedTerm;
-  17?: FoldedTerm;
-  18?: FoldedTerm;
+  1?: object | FoldedTermItem;
+  2?: FoldedTermItem;
+  4?: FoldedTermItem;
+  5?: FoldedTermItem;
+  6?: FoldedTermItem;
+  7?: FoldedTermItem;
+  8?: FoldedTermItem;
+  9?: FoldedTermItem;
+  10?: FoldedTermItem;
+  11?: FoldedTermItem;
+  12?: FoldedTermItem;
+  13?: FoldedTermItem;
+  14?: FoldedTermItem;
+  15?: FoldedTermItem;
+  16?: FoldedTermItem;
+  17?: FoldedTermItem;
+  18?: FoldedTermItem;
 }
 
 const registry = new Map()
@@ -101,7 +101,6 @@ export function query(query: Query, key: Function | React.Component): Function |
   registry.set(key, query)
   return key
 }
-
 
 export function getQuery(key: any): Query {
   return registry.get(key)
@@ -177,12 +176,12 @@ function parseQueryRemote (query: Query) {
   }, [])
 }
 
-export function parseChildrenRemote([dispatchKey, params, ...chi]) {
+export function parseChildrenRemote([dispatchKey, params, ...chi]:Term) {
   const chiRemote = parseQueryRemote(chi)
   return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote]
 }
 
-function parseQueryTermSync(queryTerm, result, env) {
+function parseQueryTermSync(queryTerm: Term, result: object, env: Env) {
   const syncFun = parsers.sync[queryTerm[0]]
   if (syncFun) {
     syncFun(queryTerm, result, env, state)
@@ -197,7 +196,7 @@ export function zip<T, U>(a1:Array<T>, a2:Array<U>):(T | U)[][]
 function performRemoteQuery(query: Query) {
   if (Array.isArray(query) && remoteHandler) {
     remoteHandler(query, results => {
-      zip(query, results).map(([k, v]) => parseQueryTermSync(k, v, {}))
+      zip(query, results).map(([k, v]: [Term, any]) => parseQueryTermSync(k, v, {}))
       refresh(false)
     })
   }
@@ -233,7 +232,14 @@ export function parseChildren(term: Term, env: Env, _state = state, _parsers = p
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
 }
 
-export function transact(props, query: Query, _state = state, _parsers = parsers) {
+interface QLProps {
+  env: Env,
+  query: Query,
+  key?: string | number,
+  [prop: string]: object | string | number,
+}
+
+export function transact(props: QLProps, query: Query, _state = state, _parsers = parsers) {
   const { env, query: componentQuery } = props
   const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
   parseQuery(rootQuery, env)
@@ -242,12 +248,9 @@ export function transact(props, query: Query, _state = state, _parsers = parsers
   refresh(false)
 }
 
-export function createInstance(Component, atts: {env, query}, key?: string | number) {
-  const { env, query } = atts
+export function createInstance(Component: React.FunctionComponent | React.ComponentClass, atts: object, key?: string | number) {
   return React.createElement(Component, {
     ...atts,
-    env,
-    query,
     key,
   })
 }
@@ -266,11 +269,11 @@ export function unfoldQueryTerm(foldedTerm: FoldedTerm): Term {
     res = [tag, maybeParams]
   } else {
     [,...foldedTerms] = foldedTerm
-    res = [tag]
+    res = [tag, {}]
   }
   const terms: Array<Term> = foldedTerms.map(componentToQuery).reduce(
     (res: Array<Term>, arr) => ([...res, ...arr]), [])
-  return res.length === 1 ? [res[0], ...terms] : [res[0], res[1], ...terms]
+  return [res[0], res[1], ...terms]
 }
 
 export function unfoldQuery(query: FoldedQuery): Query {
@@ -286,11 +289,11 @@ function refresh(isRemoteQuery: boolean): void {
   ReactDOM.render(createInstance(Component, atts), element)
 }
 
-export function mount({ state: _st, parsers: _parsers, remoteHandler: _rh }) {
+export function mount({ state: _st, parsers: _parsers, remoteHandler: _rh }: {state: object, parsers: {read: Multimethod, mutate: Multimethod, remote: Multimethod, sync: Multimethod}, remoteHandler: Function}) {
   state = _st
   parsers = _parsers
   remoteHandler = _rh
-  return ({ component, element: _el }: {component: Function | React.Component, element: HTMLElement}) => {
+  return ({ component, element: _el }: {component: React.FunctionComponent | React.ComponentClass, element: HTMLElement}) => {
     Component = component
     element = _el
     refresh(true)
