@@ -47,62 +47,62 @@ let state: object
 let remoteHandler: Function
 let parsers: {read: Multimethod, mutate: Multimethod, remote: Multimethod, sync: Multimethod}
 
-type Query = Term[]
+type FullQuery = FullTerm[]
+
+interface FullTerm extends Array<any> {
+  0: string;
+  1: object;
+  2?: FullTerm;
+  4?: FullTerm;
+  5?: FullTerm;
+  6?: FullTerm;
+  7?: FullTerm;
+  8?: FullTerm;
+  9?: FullTerm;
+  10?: FullTerm;
+  11?: FullTerm;
+  12?: FullTerm;
+  13?: FullTerm;
+  14?: FullTerm;
+  15?: FullTerm;
+  16?: FullTerm;
+  17?: FullTerm;
+  18?: FullTerm;
+}
+
+type FoldedQuery = (Term | string)[]
+
+type TermItem = Term | React.FunctionComponent | React.ComponentClass;
 
 interface Term extends Array<any> {
   0: string;
-  1: object;
-  2?: Term;
-  4?: Term;
-  5?: Term;
-  6?: Term;
-  7?: Term;
-  8?: Term;
-  9?: Term;
-  10?: Term;
-  11?: Term;
-  12?: Term;
-  13?: Term;
-  14?: Term;
-  15?: Term;
-  16?: Term;
-  17?: Term;
-  18?: Term;
-}
-
-type FoldedQuery = (FoldedTerm | string)[]
-
-type FoldedTermItem = FoldedTerm | React.FunctionComponent | React.ComponentClass;
-
-interface FoldedTerm extends Array<any> {
-  0: string;
-  1?: object | FoldedTermItem;
-  2?: FoldedTermItem;
-  4?: FoldedTermItem;
-  5?: FoldedTermItem;
-  6?: FoldedTermItem;
-  7?: FoldedTermItem;
-  8?: FoldedTermItem;
-  9?: FoldedTermItem;
-  10?: FoldedTermItem;
-  11?: FoldedTermItem;
-  12?: FoldedTermItem;
-  13?: FoldedTermItem;
-  14?: FoldedTermItem;
-  15?: FoldedTermItem;
-  16?: FoldedTermItem;
-  17?: FoldedTermItem;
-  18?: FoldedTermItem;
+  1?: object | TermItem;
+  2?: TermItem;
+  4?: TermItem;
+  5?: TermItem;
+  6?: TermItem;
+  7?: TermItem;
+  8?: TermItem;
+  9?: TermItem;
+  10?: TermItem;
+  11?: TermItem;
+  12?: TermItem;
+  13?: TermItem;
+  14?: TermItem;
+  15?: TermItem;
+  16?: TermItem;
+  17?: TermItem;
+  18?: TermItem;
 }
 
 const registry = new Map()
 
-export function query(query: Query, key: Function | React.Component): Function | React.Component {
+export function query(query: FullQuery, key: Function | React.Component): Function | React.Component {
   registry.set(key, query)
   return key
 }
 
-export function getQuery(key: any): Query {
+export function getQuery(key: any): FullQuery {
   return registry.get(key)
 }
 
@@ -115,7 +115,7 @@ interface Env {
   queryKey?: string;
 }
 
-const parseQueryTerm = (queryTerm: Term, env: Env): object => {
+const parseQueryTerm = (queryTerm: FullTerm, env: Env): object => {
   const mutateFn = parsers.mutate && parsers.mutate[queryTerm[0]]
   if (mutateFn) {
     return mutateFn(queryTerm, env, state)
@@ -124,7 +124,7 @@ const parseQueryTerm = (queryTerm: Term, env: Env): object => {
   }
 }
 
-const parseQuery = (query: Query, env: Env): object[] => {
+const parseQuery = (query: FullQuery, env: Env): object[] => {
   if (env === undefined) {
     return parseQuery(query, {})
   }
@@ -134,20 +134,20 @@ const parseQuery = (query: Query, env: Env): object[] => {
   })
 }
 
-interface QueryIntoMap {
+interface FullQueryIntoMap {
   env: Env,
-  query: Query,
+  query: FullQuery,
   [index: string]: object,
 }
 
 function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...res, [k]: v })}
 
 export function parseQueryIntoMap(
-  query: Query,
+  query: FullQuery,
   env: Env,
   _state: object = state,
   _parsers: {[parser: string]: Function} = parsers,
-): QueryIntoMap {
+): FullQueryIntoMap {
   const queryNames: string[] = query.map(v => v[0])
   const queryResult = parseQuery(query, env)
 
@@ -161,7 +161,7 @@ export function parseQueryIntoMap(
 }
 
 
-function parseQueryRemote (query: Query) {
+function parseQueryRemote (query: FullQuery) {
   return query.reduce((acc, item) => {
     if (parsers.remote[item[0]]) {
       const v = parsers.remote(item, state)
@@ -176,12 +176,12 @@ function parseQueryRemote (query: Query) {
   }, [])
 }
 
-export function parseChildrenRemote([dispatchKey, params, ...chi]:Term) {
+export function parseChildrenRemote([dispatchKey, params, ...chi]:FullTerm) {
   const chiRemote = parseQueryRemote(chi)
   return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote]
 }
 
-function parseQueryTermSync(queryTerm: Term, result: object, env: Env) {
+function parseQueryTermSync(queryTerm: FullTerm, result: object, env: Env) {
   const syncFun = parsers.sync[queryTerm[0]]
   if (syncFun) {
     syncFun(queryTerm, result, env, state)
@@ -193,10 +193,10 @@ function parseQueryTermSync(queryTerm: Term, result: object, env: Env) {
 export function zip<T, U>(a1:Array<T>, a2:Array<U>):(T | U)[][]
   {return a1.map((x, i) => [x, a2[i]])}
 
-function performRemoteQuery(query: Query) {
+function performRemoteQuery(query: FullQuery) {
   if (Array.isArray(query) && remoteHandler) {
     remoteHandler(query, results => {
-      zip(query, results).map(([k, v]: [Term, any]) => parseQueryTermSync(k, v, {}))
+      zip(query, results).map(([k, v]: [FullTerm, any]) => parseQueryTermSync(k, v, {}))
       refresh(false)
     })
   }
@@ -208,7 +208,7 @@ export function mapDelta(map1:{}, map2:{}):{} {
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {})
 }
 
-export function loopRootQuery(queryTerm: Term, env?: Env): Term {
+export function loopRootQuery(queryTerm: FullTerm, env?: Env): FullTerm {
   if (env) {
     const parentEnv = env.parentEnv
     const newEnv: Env = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
@@ -220,13 +220,13 @@ export function loopRootQuery(queryTerm: Term, env?: Env): Term {
   }
 }
 
-export function makeRootQuery(env: Env, query: Query) {
+export function makeRootQuery(env: Env, query: FullQuery) {
   return query.map(queryTerm => {
     return loopRootQuery(queryTerm, env.parentEnv)
   })
 }
 
-export function parseChildren(term: Term, env: Env, _state = state, _parsers = parsers) {
+export function parseChildren(term: FullTerm, env: Env, _state = state, _parsers = parsers) {
   const [, , ...query] = term
   const newEnv = { ...env, parentEnv: { ...env, queryKey: term[0] } }
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
@@ -234,12 +234,12 @@ export function parseChildren(term: Term, env: Env, _state = state, _parsers = p
 
 interface QLProps {
   env: Env,
-  query: Query,
+  query: FullQuery,
   key?: string | number,
   [prop: string]: object | string | number,
 }
 
-export function transact(props: QLProps, query: Query, _state = state, _parsers = parsers) {
+export function transact(props: QLProps, query: FullQuery, _state = state, _parsers = parsers) {
   const { env, query: componentQuery } = props
   const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
   parseQuery(rootQuery, env)
@@ -255,28 +255,28 @@ export function createInstance(Component: React.FunctionComponent | React.Compon
   })
 }
 
-export function componentToQuery(something: Query): Query {
-  const query: Query = unfoldQuery(getQuery(something))
+export function componentToQuery(something: FullQuery): FullQuery {
+  const query: FullQuery = unfoldQuery(getQuery(something))
   return query || something
 }
 
-export function unfoldQueryTerm(foldedTerm: FoldedTerm): Term {
-  let foldedTerms: Array<FoldedTerm>
-  const [tag, maybeParams] = foldedTerm
-  let res:Term
+export function unfoldQueryTerm(term: Term): FullTerm {
+  let terms: Array<Term>
+  const [tag, maybeParams] = term
+  let res:FullTerm
   if (maybeParams && (Object.getPrototypeOf(maybeParams) === Object.prototype)) {
-    [,,...foldedTerms] = foldedTerm
+    [,,...terms] = term
     res = [tag, maybeParams]
   } else {
-    [,...foldedTerms] = foldedTerm
+    [,...terms] = term
     res = [tag, {}]
   }
-  const terms: Array<Term> = foldedTerms.map(componentToQuery).reduce(
-    (res: Array<Term>, arr) => ([...res, ...arr]), [])
-  return [res[0], res[1], ...terms]
+  const fullTerms: Array<FullTerm> = terms.map(componentToQuery).reduce(
+    (res: Array<FullTerm>, arr) => ([...res, ...arr]), [])
+  return [res[0], res[1], ...fullTerms]
 }
 
-export function unfoldQuery(query: FoldedQuery): Query {
+export function unfoldQuery(query: FoldedQuery): FullQuery {
   return query.map(unfoldQueryTerm)
 }
 
