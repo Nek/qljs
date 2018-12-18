@@ -1,5 +1,4 @@
-
-# QLJS &middot; [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Nek/qljs/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/qljs.svg?style=flat)](https://www.npmjs.com/package/qljs) [![Coverage Status](https://img.shields.io/coveralls/nek/qljs/master.svg?style=flat)](https://coveralls.io/github/nek/qljs?branch=master) [![CircleCI](https://circleci.com/gh/Nek/qljs/tree/master.svg?style=svg)](https://circleci.com/gh/Nek/qljs/tree/master) 
+# QLJS &middot; [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/Nek/qljs/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/qljs.svg?style=flat)](https://www.npmjs.com/package/qljs) [![Coverage Status](https://img.shields.io/coveralls/nek/qljs/master.svg?style=flat)](https://coveralls.io/github/nek/qljs?branch=master) [![Build Status](https://travis-ci.org/Nek/qljs.svg?branch=master)](https://travis-ci.org/Nek/qljs)
 
 # QLJS
 
