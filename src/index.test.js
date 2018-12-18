@@ -1,4 +1,4 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta, unfoldQuery, query } from './index'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta, unfoldQuery, query, parsers } from './index'
 
 
 const dispatch = ([first]) => first
@@ -8,8 +8,26 @@ const noMatch = term => {
 
 describe('ql', () => {
   let state
-  let sync, read, mutate, remote
+  let { sync, read, mutate, remote } = parsers
 
+  read['name'] = (term, { personId }, state) => {
+    return state.people[personId].name
+  }
+
+  read.age = (term, { personId }, state) => {
+    return state.people[personId].age
+  }
+  read.people = (term, env, state) => {
+    const [, { personId }] = term
+    if (personId) {
+      return parseChildren(term, { ...env, personId })
+    } else {
+      const res = Object.keys(state.people).map(personId =>
+                                                parseChildren(term, { ...env, personId }),
+                                                 )
+      return res
+    }
+  }
 
   beforeEach(() => {
     state = {
@@ -18,31 +36,12 @@ describe('ql', () => {
         1: { name: 'Alya', age: 32 },
       },
     }
-    let read = multimethod(dispatch)
-    let mutate = multimethod(dispatch)
-    let sync = multimethod(dispatch)
-    let remote = multimethod(dispatch)
-
-    read.name = (term, { personId }, state) => {
-      return state.people[personId].name
-    }
-    read.age = (term, { personId }, state) => {
-      return state.people[personId].age
-    }
-    read.people = (term, env, state) => {
-      const [, { personId }] = term
-      if (personId) {
-        return parseChildren(term, { ...env, personId })
-      } else {
-        const res = Object.keys(state.people).map(personId =>
-                                                  parseChildren(term, { ...env, personId }),
-                                                 )
-        return res
-      }
-    }
 
 
-    mount({ state, parsers: { read }, remoteHandler: v => v })
+
+
+
+    mount({ state, remoteHandler: v => v })
   })
 
   describe('parseQueryIntoMap', () => {
@@ -165,17 +164,17 @@ describe('ql', () => {
     })
   })
   describe(`unfoldQuery`, () => {
-    it('unfolds simple terms to themselves', () => {
-      expect(unfoldQuery([['data']])).toEqual([['data']])
-      expect(unfoldQuery([['data'], ['moreData']])).toEqual([['data'], ['moreData']])
+    it('unfolds simple terms', () => {
+      expect(unfoldQuery([['data']])).toEqual([['data', {}]])
+      expect(unfoldQuery([['data'], ['moreData']])).toEqual([['data', {}], ['moreData', {}]])
     })
-    it('unfolds simple terms with params to itself', () => {
+    it('unfolds simple terms with params', () => {
       expect(unfoldQuery([['data', {stuff:1}]])).toEqual([['data', {stuff:1}]])
     })
     it('unfolds a term with chidlren query', () => {
       const F = () => {}
       query([['data']], F)
-      expect(unfoldQuery([['some', F]])).toEqual([['some', ['data']]])
+      expect(unfoldQuery([['some', F]])).toEqual([['some', {}, ['data', {}]]])
       clearRegistry()
     })
   })
