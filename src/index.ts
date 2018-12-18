@@ -6,7 +6,7 @@ interface Multimethod extends Function {
 }
 
 const noMatchWarningDefault = (id, key) => {
-  console.warn(`No match for "${key}" on multimethod "${id}"".`)
+  console.warn(`No match for "${key}" on multimethod "${id}".`)
 }
 const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol) => {
   throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
