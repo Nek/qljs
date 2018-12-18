@@ -1,25 +1,26 @@
 import React, { ReactElement, DOMElement, FunctionComponent} from 'react'
 import ReactDOM from 'react-dom'
+import { array } from 'prop-types';
 
 interface Multimethod extends Function {
 }
 
-const noMatchDefault = (id, key) => {
+const noMatchWarningDefault = (id, key) => {
   console.warn(`No match for "${key}" on multimethod "${id}"".`)
 }
-
-const alreadyDefinedDefault = (id: string, key: string | number | symbol) => {
+const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol) => {
   throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
 }
 
 export function multimethod(dispatch: Function, id = 'default',
-                            noMatch: Function = noMatchDefault,
-                            alreadyDefined: Function = alreadyDefinedDefault,
+                            defaultMethod: Function = () => null,
+                            alreadyDefined: Function = alreadyDefinedErrorDefault,
+                            noMatchWarning: Function = noMatchWarningDefault,
                            ): Multimethod {
   const dict = {}
 
   return new Proxy<Function>(
-    noMatch
+    defaultMethod
     ,
     {
       set(target , property, value) {
@@ -33,13 +34,16 @@ export function multimethod(dispatch: Function, id = 'default',
          return dict[property]
       },
       apply(target, thisArg, args) {
-        const value = dispatch.apply(null, args)
+        const key = dispatch.apply(null, args)
         const func =
-          value && dict.hasOwnProperty(value)
-            ? dict[value]
+          key && dict.hasOwnProperty(key)
+            ? dict[key]
             : dict.hasOwnProperty('noMatch')
               ? dict['noMatch']
-              : target
+          : (...args) => {
+            noMatchWarning(id, key)
+            return target(...args)
+          }
         return func.apply(thisArg, args)
       },
     },
@@ -48,15 +52,15 @@ export function multimethod(dispatch: Function, id = 'default',
 
 const first = a => a[0]
 
-const parserNoMatch = (id: string, key) => {
+const parserNoMatch = (id: string, key: string | number | symbol) => {
   console.warn(`${String(id)} parser method for "${String(key)} is missing."`)
 }
 const alreadyDefined = (id: string, key: string | number | symbol) => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
-
-const read = multimethod(first, 'read', parserNoMatch, alreadyDefined)
-const mutate =  multimethod(first, 'mutate', parserNoMatch, alreadyDefined)
-const remote = multimethod(first, 'remote', parserNoMatch, alreadyDefined)
-const sync = multimethod(first, 'sync', parserNoMatch, alreadyDefined)
+const id = v => v
+const read = multimethod(first, 'read', id, alreadyDefined, parserNoMatch)
+const mutate =  multimethod(first, 'mutate', id, alreadyDefined, parserNoMatch)
+const remote = multimethod(first, 'remote', id, alreadyDefined, parserNoMatch)
+const sync = multimethod(first, 'sync', id, alreadyDefined, parserNoMatch)
 
 export const parsers = {
   read,
@@ -64,7 +68,6 @@ export const parsers = {
   remote,
   sync,
 }
-
 
 let Component: React.FunctionComponent | React.ComponentClass
 let element: HTMLElement
@@ -217,10 +220,13 @@ function parseQueryTermSync(queryTerm: FullTerm, result: object, env: Env) {
 export function zip<T, U>(a1:Array<T>, a2:Array<U>):(T | U)[][]
   {return a1.map((x, i) => [x, a2[i]])}
 
+/*
+Call remote handler for a query and zip result to
+*/
 function performRemoteQuery(query: FullQuery) {
-  if (Array.isArray(query) && remoteHandler) {
+  if (remoteHandler && Array.isArray(query) && query.length > 0) {
     remoteHandler(query, results => {
-      zip(query, results).map(([k, v]: [FullTerm, any]) => parseQueryTermSync(k, v, {}))
+      zip(query, results).forEach(([k, v]: [FullTerm, any]) => parseQueryTermSync(k, v, {}))
       refresh(false)
     })
   }
