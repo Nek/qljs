@@ -53,7 +53,7 @@ export function multimethod(dispatch: Function, id = 'default',
 const first = a => a[0]
 
 const parserNoMatch = (id: string, key: string | number | symbol) => {
-  console.warn(`${String(id)} parser method for "${String(key)} is missing."`)
+  console.warn(`${String(id)} parser method for "${String(key)}" is missing.`)
 }
 const alreadyDefined = (id: string, key: string | number | symbol) => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
 const id = v => v
