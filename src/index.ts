@@ -30,8 +30,7 @@ export function multimethod(dispatch: Function, id = 'default',
         return true
       },
       get(target, property, receiver) {
-        console.log(id)
-        return dict[property]
+         return dict[property]
       },
       apply(target, thisArg, args) {
         const value = dispatch.apply(null, args)
