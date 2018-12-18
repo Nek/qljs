@@ -1,29 +1,36 @@
 import React, { ReactElement, DOMElement, FunctionComponent} from 'react'
 import ReactDOM from 'react-dom'
 
-const noMatch = (term: string):void => {
-  throw new Error('No match for ' + term)
-}
-
 interface Multimethod extends Function {
 }
 
-export function multimethod(dispatch: Function): Multimethod {
+const noMatchDefault = (id, key) => {
+  console.warn(`No match for "${key}" on multimethod "${id}"".`)
+}
+
+const alreadyDefinedDefault = (id: string, key: string | number | symbol) => {
+  throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
+}
+
+export function multimethod(dispatch: Function, id = 'default',
+                            noMatch: Function = noMatchDefault,
+                            alreadyDefined: Function = alreadyDefinedDefault,
+                           ): Multimethod {
   const dict = {}
-  if (typeof noMatch == 'function') {
-    dict['noMatch'] = noMatch
-  }
 
   return new Proxy<Function>(
-    () => {
-      throw new Error('No match')
-    },
+    noMatch
+    ,
     {
       set(target , property, value) {
+        if (dict[property] !== undefined) {
+          alreadyDefined(id, property)
+        }
         dict[property] = value
         return true
       },
       get(target, property, receiver) {
+        console.log(id)
         return dict[property]
       },
       apply(target, thisArg, args) {
@@ -40,19 +47,38 @@ export function multimethod(dispatch: Function): Multimethod {
   )
 }
 
+const first = a => a[0]
+
+const parserNoMatch = (id: string, key) => {
+  console.warn(`${String(id)} parser method for "${String(key)} is missing."`)
+}
+const alreadyDefined = (id: string, key: string | number | symbol) => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
+
+const read = multimethod(first, 'read', parserNoMatch, alreadyDefined)
+const mutate =  multimethod(first, 'mutate', parserNoMatch, alreadyDefined)
+const remote = multimethod(first, 'remote', parserNoMatch, alreadyDefined)
+const sync = multimethod(first, 'sync', parserNoMatch, alreadyDefined)
+
+export const parsers = {
+  read,
+  mutate,
+  remote,
+  sync,
+}
+
 
 let Component: React.FunctionComponent | React.ComponentClass
 let element: HTMLElement
 let state: object
 let remoteHandler: Function
-let parsers: {read: Multimethod, mutate: Multimethod, remote: Multimethod, sync: Multimethod}
 
-type FullQuery = FullTerm[]
+type FullQuery = Array<FullTerm>
 
 interface FullTerm extends Array<any> {
   0: string;
   1: object;
   2?: FullTerm;
+  3?: FullTerm;
   4?: FullTerm;
   5?: FullTerm;
   6?: FullTerm;
@@ -70,7 +96,7 @@ interface FullTerm extends Array<any> {
   18?: FullTerm;
 }
 
-type FoldedQuery = (Term | string)[]
+type FoldedQuery = Array<Term>
 
 type TermItem = Term | React.FunctionComponent | React.ComponentClass;
 
@@ -78,9 +104,10 @@ interface Term extends Array<any> {
   0: string;
   1?: object | TermItem;
   2?: TermItem;
+  3?: TermItem;
   4?: TermItem;
-  5?: TermItem;
   6?: TermItem;
+  5?: TermItem;
   7?: TermItem;
   8?: TermItem;
   9?: TermItem;
@@ -115,29 +142,27 @@ interface Env {
   queryKey?: string;
 }
 
-const parseQueryTerm = (queryTerm: FullTerm, env: Env): object => {
-  const mutateFn = parsers.mutate && parsers.mutate[queryTerm[0]]
+const parseQueryTerm = (term: FullTerm, env: Env): object => {
+  const mutateFn = parsers.mutate && parsers.mutate[term[0]]
   if (mutateFn) {
-    return mutateFn(queryTerm, env, state)
+    return mutateFn(term, env, state)
   } else {
-    return parsers.read(queryTerm, env, state)
+    return parsers.read(term, env, state)
   }
 }
 
-const parseQuery = (query: FullQuery, env: Env): object[] => {
+const parseQuery = (query: FullQuery, env: Env): Array<object> => {
   if (env === undefined) {
     return parseQuery(query, {})
   }
 
-  return query.map(queryTerm => {
-    return parseQueryTerm(queryTerm, env)
-  })
+  return query.map(queryTerm => parseQueryTerm(queryTerm, env))
 }
 
-interface FullQueryIntoMap {
-  env: Env,
-  query: FullQuery,
-  [index: string]: object,
+interface FullQueryMap {
+  env: Env;
+  query: FullQuery;
+  [index: string]: object;
 }
 
 function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...res, [k]: v })}
@@ -147,7 +172,7 @@ export function parseQueryIntoMap(
   env: Env,
   _state: object = state,
   _parsers: {[parser: string]: Function} = parsers,
-): FullQueryIntoMap {
+): FullQueryMap {
   const queryNames: string[] = query.map(v => v[0])
   const queryResult = parseQuery(query, env)
 
@@ -162,9 +187,9 @@ export function parseQueryIntoMap(
 
 
 function parseQueryRemote (query: FullQuery) {
-  return query.reduce((acc, item) => {
-    if (parsers.remote[item[0]]) {
-      const v = parsers.remote(item, state)
+  return query.reduce((acc, term) => {
+    if (parsers.remote[term[0]]) {
+      const v = parsers.remote(term, state)
       if (v) {
         return [...acc, v]
       } else {
@@ -289,10 +314,10 @@ function refresh(isRemoteQuery: boolean): void {
   ReactDOM.render(createInstance(Component, atts), element)
 }
 
-export function mount({ state: _st, parsers: _parsers, remoteHandler: _rh }: {state: object, parsers: {read: Multimethod, mutate: Multimethod, remote: Multimethod, sync: Multimethod}, remoteHandler: Function}) {
+export function mount({ state: _st, remoteHandler: _rh }: {state: object, remoteHandler: Function}) {
   state = _st
-  parsers = _parsers
   remoteHandler = _rh
+
   return ({ component, element: _el }: {component: React.FunctionComponent | React.ComponentClass, element: HTMLElement}) => {
     Component = component
     element = _el
