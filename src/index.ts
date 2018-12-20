@@ -311,6 +311,7 @@ export function unfoldQuery(query: FoldedQuery): FullQuery {
 }
 
 function refresh(isRemoteQuery: boolean): void {
+  if (Component === undefined) return
   const query = unfoldQuery(getQuery(Component))
   const atts = parseQueryIntoMap(query, {})
   if (isRemoteQuery) {

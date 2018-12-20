@@ -1,4 +1,4 @@
-import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta, unfoldQuery, query, parsers } from './index'
+import { mount, clearRegistry, parseQueryIntoMap, parseChildren, multimethod, makeRootQuery, mapDelta, unfoldQuery, query, parsers, transact, parseChildrenRemote  } from './index'
 
 
 const dispatch = ([first]) => first
@@ -11,13 +11,13 @@ describe('ql', () => {
   let { sync, read, mutate, remote } = parsers
 
   read['name'] = (term, { personId }, state) => {
-    return state.people[personId].name
+    return state.people[personId] && state.people[personId].name
   }
 
-  read.age = (term, { personId }, state) => {
-    return state.people[personId].age
+  read['age'] = (term, { personId }, state) => {
+    return state.people[personId] && state.people[personId].age
   }
-  read.people = (term, env, state) => {
+  read['people'] = (term, env, state) => {
     const [, { personId }] = term
     if (personId) {
       return parseChildren(term, { ...env, personId })
@@ -29,29 +29,35 @@ describe('ql', () => {
     }
   }
 
+  mutate['delete'] = ([key, {personId}], env, state) => {
+    delete state.people[personId]
+  }
+
+  remote['delete'] = (term, env, state) => {
+    console.log(term)
+    return term
+  }
+
   beforeEach(() => {
     state = {
       people: {
-        0: { name: 'Nik', age: 37 },
-        1: { name: 'Alya', age: 32 },
+        0: { name: 'Bob', age: 29 },
+        1: { name: 'John', age: 35 },
       },
     }
-
-
-
-
-
-    mount({ state, remoteHandler: v => v })
+    const Component = () => null
+    query([['people']], Component)
+    mount({ state, remoteHandler: v => v })//(Component)
   })
 
   describe('parseQueryIntoMap', () => {
     it('should parse a simple query', () => {
       const query = [['name'], ['age']]
-      const env = { personId: 0 }
+      const env = { personId: '0' }
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
-        name: 'Nik',
-        age: 37,
-        env: { personId: 0 },
+        name: 'Bob',
+        age: 29,
+        env: { personId: '0' },
         query,
       })
     })
@@ -68,15 +74,15 @@ describe('ql', () => {
         env: expect.anything(),
         people: [
           {
-            name: 'Nik',
-            age: 37,
+            name: 'Bob',
+            age: 29,
 
             env: expect.anything(),
             query: expect.anything(),
           },
           {
-            name: 'Alya',
-            age: 32,
+            name: 'John',
+            age: 35,
 
             env: expect.anything(),
             query: expect.anything(),
@@ -108,8 +114,8 @@ describe('ql', () => {
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
         people: [
           {
-            name: 'Nik',
-            age: 37,
+            name: 'Bob',
+            age: 29,
             env: expect.objectContaining({
               parentEnv: { personId: '0', queryKey: 'people' },
               personId: '0',
@@ -117,8 +123,8 @@ describe('ql', () => {
             query: [['name'], ['age']],
           },
           {
-            name: 'Alya',
-            age: 32,
+            name: 'John',
+            age: 35,
             env: expect.objectContaining({
               parentEnv: { personId: '1', queryKey: 'people' },
               personId: '1',
@@ -176,6 +182,13 @@ describe('ql', () => {
       query([['data']], F)
       expect(unfoldQuery([['some', F]])).toEqual([['some', {}, ['data', {}]]])
       clearRegistry()
+    })
+  })
+
+  describe('transact', () => {
+    it('mutates state', () => {
+      transact({people: [], env: {}, query:[['people', {personId: '0'}], ['name', {}]]}, [['delete', {personId: '0'}]])
+      expect(state).toEqual(expect.not.objectContaining({'0': { name: 'Bob', age: 29}}))
     })
   })
 })
