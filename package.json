@@ -1,7 +1,7 @@
 {
   "name": "qljs",
   "version": "0.1.0",
-  "description": "Query Language for React",
+  "description": "UI Data Query Language on top of ReactJS",
   "main": "lib/qljs.js",
   "scripts": {
     "build": "webpack --env dev && webpack --env build",
@@ -10,7 +10,12 @@
     "test:watch": "jest --watchAll",
     "test:cover": "jest --collectCoverage"
   },
-  "keywords": [],
+  "keywords": [
+    "query",
+    "language",
+    "react",
+    "ui"
+  ],
   "eslintConfig": {
     "extends": "react-app",
     "plugins": [
