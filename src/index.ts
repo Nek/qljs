@@ -1,6 +1,5 @@
-import React, { ReactElement, DOMElement, FunctionComponent} from 'react'
+import React  from 'react'
 import ReactDOM from 'react-dom'
-import { array } from 'prop-types';
 
 interface Multimethod extends Function {
 }
