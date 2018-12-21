@@ -1,6 +1,6 @@
 {
   "name": "qljs",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "UI Data Query Language on top of ReactJS",
   "main": "lib/qljs.js",
   "scripts": {
@@ -22,7 +22,7 @@
   },
   "author": "Nikita Dudnik",
   "license": "MIT",
-   "eslintConfig": {
+  "eslintConfig": {
     "extends": "react-app",
     "plugins": [
       "prettier"
