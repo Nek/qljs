@@ -188,4 +188,13 @@ describe('ql', () => {
       expect(state).toEqual(expect.not.objectContaining({'0': { name: 'Bob', age: 29}}))
     })
   })
+
+  describe(`parseChildrenRemote`, () => {
+    it(`parses children`, () => {
+      expect(parseChildrenRemote(["todos", {}, ["text", {}]])).toEqual([
+        "todos",
+        {}
+      ])
+    })
+  })
 })
