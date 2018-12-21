@@ -16,7 +16,13 @@
     "react",
     "ui"
   ],
-  "eslintConfig": {
+  "homepage": "https://github.com/Nek/qljs#readme",
+  "bugs": {
+    "url": "https://github.com/Nek/qljs/issues"
+  },
+  "author": "Nikita Dudnik",
+  "license": "MIT",
+   "eslintConfig": {
     "extends": "react-app",
     "plugins": [
       "prettier"
@@ -27,8 +33,6 @@
       ]
     }
   },
-  "author": "Nikita Dudnik",
-  "license": "MIT",
   "devDependencies": {
     "@babel/cli": "^7.0.0-beta.51",
     "@babel/core": "^7.0.0-beta.51",
