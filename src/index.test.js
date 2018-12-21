@@ -185,7 +185,7 @@ describe('ql', () => {
   describe('transact', () => {
     it('mutates state', () => {
       transact({people: [], env: {}, query:[['people', {personId: '0'}], ['name', {}]]}, [['delete', {personId: '0'}]])
-      expect(state).toEqual(expect.not.objectContaining({'0': { name: 'Bob', age: 29}}))
+      expect(state.people).toEqual(expect.not.objectContaining({'0': { name: 'Bob', age: 29}}))
     })
   })
 
