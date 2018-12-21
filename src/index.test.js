@@ -34,7 +34,6 @@ describe('ql', () => {
   }
 
   remote['delete'] = (term, env, state) => {
-    console.log(term)
     return term
   }
 
@@ -47,7 +46,7 @@ describe('ql', () => {
     }
     const Component = () => null
     query([['people']], Component)
-    mount({ state, remoteHandler: v => v })//(Component)
+    mount({ state, remoteHandler: v => v })(Component, {})
   })
 
   describe('parseQueryIntoMap', () => {
@@ -143,8 +142,6 @@ describe('ql', () => {
       expect(mapDelta({a:1},{a:2, b:2})).toEqual({a:2, b:2})
       expect(mapDelta({a:1, b:2},{a:2, b:2})).toEqual({a:2})
       expect(mapDelta({a:1},{a:1})).toEqual({})
-
-
     })
   })
   describe('makeRootQuery', () => {

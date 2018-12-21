@@ -11,6 +11,13 @@ const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol) =
   throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
 }
 
+/**
+Ad-hoc polymorphism for JS.
+dispatch - function that takes incoming parameteres and returns the actual method name
+defaultMethod - default action for missing methods
+alreadyDefined - overwriting existing method error message formatter
+noMatchWarning -  missing method call warning message formatter
+**/
 export function multimethod(dispatch: Function, id = 'default',
                             defaultMethod: Function = () => null,
                             alreadyDefined: Function = alreadyDefinedErrorDefault,
