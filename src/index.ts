@@ -4,12 +4,14 @@ import ReactDOM from 'react-dom'
 interface Multimethod extends Function {
 }
 
-const noMatchWarningDefault = (id, key) => {
+const noMatchWarningDefault = (id: string, key: string): void => {
   console.warn(`No match for "${key}" on multimethod "${id}".`)
 }
-const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol) => {
+const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol): void => {
   throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
 }
+
+const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x)
 
 /**
 Ad-hoc polymorphism for JS.
@@ -18,7 +20,8 @@ defaultMethod - default action for missing methods
 alreadyDefined - overwriting existing method error message formatter
 noMatchWarning -  missing method call warning message formatter
 **/
-export function multimethod(dispatch: Function, id = 'default',
+export function multimethod(dispatch: Function,
+                            id: string = 'default',
                             defaultMethod: Function = () => null,
                             alreadyDefined: Function = alreadyDefinedErrorDefault,
                             noMatchWarning: Function = noMatchWarningDefault,
@@ -56,17 +59,17 @@ export function multimethod(dispatch: Function, id = 'default',
   )
 }
 
-const first = a => a[0]
+function first<T>(a: Array<T>): T {return a[0]}
 
-const parserNoMatch = (id: string, key: string | number | symbol) => {
+const parserNoMatch = (id: string, key: string | number | symbol): void => {
   console.warn(`${String(id)} parser method for "${String(key)}" is missing.`)
 }
-const alreadyDefined = (id: string, key: string | number | symbol) => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
+const alreadyDefined = (id: string, key: string | number | symbol): void => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
 const id = v => v
-const read = multimethod(first, 'read', id, alreadyDefined, parserNoMatch)
-const mutate =  multimethod(first, 'mutate', id, alreadyDefined, parserNoMatch)
-const remote = multimethod(first, 'remote', id, alreadyDefined, parserNoMatch)
-const sync = multimethod(first, 'sync', id, alreadyDefined, parserNoMatch)
+const read: Multimethod = multimethod(first, 'read', id, alreadyDefined, parserNoMatch)
+const mutate: Multimethod =  multimethod(first, 'mutate', id, alreadyDefined, parserNoMatch)
+const remote: Multimethod = multimethod(first, 'remote', id, alreadyDefined, parserNoMatch)
+const sync: Multimethod = multimethod(first, 'sync', id, alreadyDefined, parserNoMatch)
 
 export const parsers = {
   read,
@@ -75,7 +78,9 @@ export const parsers = {
   sync,
 }
 
-let Component: React.FunctionComponent | React.ComponentClass
+type QueryKey = React.FunctionComponent | React.ComponentClass
+
+let Component: QueryKey
 let element: HTMLElement
 let state: object
 let remoteHandler: Function
@@ -106,7 +111,7 @@ interface FullTerm extends Array<any> {
 
 type FoldedQuery = Array<Term>
 
-type TermItem = Term | React.FunctionComponent | React.ComponentClass;
+type TermItem = Term | QueryKey
 
 interface Term extends Array<any> {
   0: string;
@@ -130,14 +135,14 @@ interface Term extends Array<any> {
   18?: TermItem;
 }
 
-const registry = new Map()
+const registry: Map<QueryKey, FullQuery> = new Map()
 
-export function query(query: FullQuery, key: Function | React.Component): Function | React.Component {
+export function query(query: FullQuery, key: QueryKey): QueryKey {
   registry.set(key, query)
   return key
 }
 
-export function getQuery(key: any): FullQuery {
+export function getQuery(key: QueryKey): FullQuery {
   return registry.get(key)
 }
 
@@ -177,7 +182,7 @@ function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...re
 
 export function parseQueryIntoMap(
   query: FullQuery,
-  env: Env,
+  env: Env = {},
   _state: object = state,
   _parsers: {[parser: string]: Function} = parsers,
 ): FullQueryMap {
@@ -233,8 +238,19 @@ function performRemoteQuery(query: FullQuery) {
   if (remoteHandler && Array.isArray(query) && query.length > 0) {
     remoteHandler(query, results => {
       zip(query, results).forEach(([k, v]: [FullTerm, any]) => parseQueryTermSync(k, v, {}))
-      refresh(false)
+      refresh()
     })
+  }
+}
+
+function refresh({skipRemote} = {skipRemote: true}) {
+  if (Component !== undefined)
+  {
+    const perfRQ = (query) => {
+      performRemoteQuery(parseQueryRemote(query))
+      return query
+    }
+    ReactDOM.render(createInstance(Component,pipe(getQuery, unfoldQuery, skipRemote ? v => v : perfRQ, parseQueryIntoMap)(Component) ), element)
   }
 }
 
@@ -279,9 +295,8 @@ export function transact(props: QLProps, query: FullQuery, _state = state, _pars
   const { env, query: componentQuery } = props
   const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
   parseQuery(rootQuery, env)
-  const q = parseQueryRemote(rootQuery)
-  performRemoteQuery(q)
-  refresh(false)
+  performRemoteQuery(parseQueryRemote(rootQuery))
+  refresh({skipRemote:false})
 }
 
 export function createInstance(Component: React.FunctionComponent | React.ComponentClass, atts: object, key?: string | number) {
@@ -291,7 +306,7 @@ export function createInstance(Component: React.FunctionComponent | React.Compon
   })
 }
 
-export function componentToQuery(something: FullQuery): FullQuery {
+export function componentToQuery(something: any): FullQuery {
   const query: FullQuery = unfoldQuery(getQuery(something))
   return query || something
 }
@@ -316,16 +331,6 @@ export function unfoldQuery(query: FoldedQuery): FullQuery {
   return query.map(unfoldQueryTerm)
 }
 
-function refresh(isRemoteQuery: boolean): void {
-  if (Component === undefined) return
-  const query = unfoldQuery(getQuery(Component))
-  const atts = parseQueryIntoMap(query, {})
-  if (isRemoteQuery) {
-    performRemoteQuery(parseQueryRemote(query))
-  }
-  ReactDOM.render(createInstance(Component, atts), element)
-}
-
 export function mount({ state: _st, remoteHandler: _rh }: {state: object, remoteHandler: Function}) {
   state = _st
   remoteHandler = _rh
@@ -333,6 +338,7 @@ export function mount({ state: _st, remoteHandler: _rh }: {state: object, remote
   return ({ component, element: _el }: {component: React.FunctionComponent | React.ComponentClass, element: HTMLElement}) => {
     Component = component
     element = _el
-    refresh(true)
+
+    refresh()
   }
 }
