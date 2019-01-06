@@ -136,18 +136,30 @@ interface Term extends Array<any> {
 }
 
 const registry: Map<QueryKey, FullQuery> = new Map()
+const idRegistry: Map<QueryKey, string> = new Map()
 
-export function query(query: FullQuery, key: QueryKey): QueryKey {
+
+export const query = (query: FullQuery, id: string) => (key: QueryKey) => {
   registry.set(key, query)
+  id && idRegistry.set(key, id)
   return key
 }
+
+export const instance = Component => atts =>
+  React.createElement(Component, {...atts, key: atts['env'][getId(Component)]})
+
 
 export function getQuery(key: QueryKey): FullQuery {
   return registry.get(key)
 }
 
+export function getId(key: QueryKey): string {
+  return idRegistry.get(key) || 'single'
+}
+
 export function clearRegistry(): void {
   registry.clear()
+  idRegistry.clear()
 }
 
 interface Env {
@@ -250,7 +262,7 @@ function refresh({skipRemote} = {skipRemote: true}) {
       performRemoteQuery(parseQueryRemote(query))
       return query
     }
-    ReactDOM.render(createInstance(Component,pipe(getQuery, unfoldQuery, perfRQ, parseQueryIntoMap)(Component) ), element)
+    ReactDOM.render(instance(Component)(pipe(getQuery, unfoldQuery, perfRQ, parseQueryIntoMap)(Component) ), element)
   }
 }
 
@@ -297,13 +309,6 @@ export function transact(props: QLProps, query: FullQuery, _state = state, _pars
   parseQuery(rootQuery, env)
   performRemoteQuery(parseQueryRemote(rootQuery))
   refresh({skipRemote:false})
-}
-
-export function createInstance(Component: React.FunctionComponent | React.ComponentClass, atts: object, key?: string | number) {
-  return React.createElement(Component, {
-    ...atts,
-    key,
-  })
 }
 
 export function componentToQuery(something: any): FullQuery {
