@@ -176,7 +176,7 @@ describe('ql', () => {
     })
     it('unfolds a term with chidlren query', () => {
       const F = () => {}
-      query([['data']], F)
+      query([['data']])(F)
       expect(unfoldQuery([['some', F]])).toEqual([['some', {}, ['data', {}]]])
       clearRegistry()
     })
