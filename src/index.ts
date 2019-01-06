@@ -210,7 +210,6 @@ export function parseQueryIntoMap(
   }
 }
 
-
 function parseQueryRemote (query: FullQuery) {
   return query.reduce((acc, term) => {
     if (parsers.remote[term[0]]) {
