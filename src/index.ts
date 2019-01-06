@@ -246,11 +246,11 @@ function performRemoteQuery(query: FullQuery) {
 function refresh({skipRemote} = {skipRemote: true}) {
   if (Component !== undefined)
   {
-    const perfRQ = (query) => {
+    const perfRQ = skipRemote ? v => v : (query) => {
       performRemoteQuery(parseQueryRemote(query))
       return query
     }
-    ReactDOM.render(createInstance(Component,pipe(getQuery, unfoldQuery, skipRemote ? v => v : perfRQ, parseQueryIntoMap)(Component) ), element)
+    ReactDOM.render(createInstance(Component,pipe(getQuery, unfoldQuery, perfRQ, parseQueryIntoMap)(Component) ), element)
   }
 }
 
