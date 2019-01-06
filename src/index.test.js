@@ -46,7 +46,7 @@ describe('ql', () => {
     }
     const Component = () => null
     query([['people']], Component)
-    mount({ state, remoteHandler: v => v })(Component, {})
+    mount({ state, remoteHandler: () => ({then:v => v}) })(Component, {})
   })
 
   describe('parseQueryIntoMap', () => {

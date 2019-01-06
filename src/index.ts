@@ -236,7 +236,7 @@ Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: FullQuery) {
   if (remoteHandler && Array.isArray(query) && query.length > 0) {
-    remoteHandler(query, results => {
+    remoteHandler(query).then(results => {
       zip(query, results).forEach(([k, v]: [FullTerm, any]) => parseQueryTermSync(k, v, {}))
       refresh()
     })
