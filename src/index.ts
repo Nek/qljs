@@ -11,7 +11,11 @@ const alreadyDefinedErrorDefault = (id: string, key: string | number | symbol): 
   throw new Error(`Multimethod ${id} already has "${String(key)}" method.`)
 }
 
-const pipe = (...fns) => x => fns.reduce((v, f) => f(v), x)
+function pipe(...fns) {
+  return function reduce<T, U>(x:T):U {
+    return fns.reduce((v, f) => f(v), x)
+  }
+}
 
 /**
 Ad-hoc polymorphism for JS.
@@ -32,14 +36,14 @@ export function multimethod(dispatch: Function,
     defaultMethod
     ,
     {
-      set(target , property, value) {
+      set(_ , property, value) {
         if (dict[property] !== undefined) {
           alreadyDefined(id, property)
         }
         dict[property] = value
         return true
       },
-      get(target, property, receiver) {
+      get(_, property) {
          return dict[property]
       },
       apply(target, thisArg, args) {
@@ -65,7 +69,11 @@ const parserNoMatch = (id: string, key: string | number | symbol): void => {
   console.warn(`${String(id)} parser method for "${String(key)}" is missing.`)
 }
 const alreadyDefined = (id: string, key: string | number | symbol): void => {throw new Error(`${String(id)} parser already has method for "${String(key)}".`)}
-const id = v => v
+
+function id<T>(v:T):T {
+  return v
+}
+
 const read: Multimethod = multimethod(first, 'read', id, alreadyDefined, parserNoMatch)
 const mutate: Multimethod =  multimethod(first, 'mutate', id, alreadyDefined, parserNoMatch)
 const remote: Multimethod = multimethod(first, 'remote', id, alreadyDefined, parserNoMatch)
@@ -138,14 +146,13 @@ interface Term extends Array<any> {
 const registry: Map<QueryKey, FullQuery> = new Map()
 const idRegistry: Map<QueryKey, string> = new Map()
 
-
 export const query = (query: FullQuery, id: string) => (key: QueryKey) => {
   registry.set(key, query)
   id && idRegistry.set(key, id)
   return key
 }
 
-export const instance = Component => atts =>
+export const instance = (Component: React.FunctionComponent | React.ComponentClass)=> (atts: FullQueryMap) =>
   React.createElement(Component, {...atts, key: atts['env'][getId(Component)]})
 
 
@@ -184,10 +191,14 @@ const parseQuery = (query: FullQuery, env: Env): Array<object> => {
   return query.map(queryTerm => parseQueryTerm(queryTerm, env))
 }
 
-interface FullQueryMap {
+
+interface Attributes {
+  [propName: string]: (string | number | [] | {} | boolean | Attributes);
+}
+
+interface FullQueryMap extends Attributes {
   env: Env;
   query: FullQuery;
-  [index: string]: object;
 }
 
 function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...res, [k]: v })}
@@ -257,7 +268,7 @@ function performRemoteQuery(query: FullQuery) {
 function refresh({skipRemote} = {skipRemote: true}) {
   if (Component !== undefined)
   {
-    const perfRQ = skipRemote ? v => v : (query) => {
+    const perfRQ = skipRemote ? v => v : (query:FullQuery) => {
       performRemoteQuery(parseQueryRemote(query))
       return query
     }
