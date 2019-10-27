@@ -213,10 +213,11 @@ export function parseQueryIntoMap(
   const queryResult = parseQuery(query, env)
 
   const atts = zip(queryNames, queryResult).reduce(makeAtts, {})
-
+  const key = atts[queryNames[0]]
   return {
     env,
     query,
+    key,
     ...atts,
   }
 }
