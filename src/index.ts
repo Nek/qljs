@@ -143,6 +143,17 @@ interface Term extends Array<any> {
   18?: TermItem;
 }
 
+interface Attributes {
+  [propName: string]: (string | number | [] | {} | boolean | Attributes);
+}
+
+interface FullQueryMap extends Attributes {
+  __env: Env;
+  __query: FullQuery;
+  key: any;
+}
+
+
 const registry: Map<QueryKey, FullQuery> = new Map()
 const idRegistry: Map<QueryKey, string> = new Map()
 
@@ -153,7 +164,7 @@ export const query = (query: FullQuery, id: string) => (key: QueryKey) => {
 }
 
 export const instance = (Component: React.FunctionComponent | React.ComponentClass)=> (atts: FullQueryMap) =>
-  React.createElement(Component, {...atts, key: atts['env'][getId(Component)]})
+  React.createElement(Component, {...atts, key: atts['__env'][getId(Component)]})
 
 
 export function getQuery(key: QueryKey): FullQuery {
@@ -170,54 +181,44 @@ export function clearRegistry(): void {
 }
 
 interface Env {
-  parentEnv?: Env;
-  queryKey?: string;
+  __parentEnv?: Env;
+  __queryKey?: string;
 }
 
-const parseQueryTerm = (term: FullTerm, env: Env): object => {
+const parseQueryTerm = (term: FullTerm, __env: Env): object => {
   const mutateFn = parsers.mutate && parsers.mutate[term[0]]
   if (mutateFn) {
-    return mutateFn(term, env, state)
+    return mutateFn(term, __env, state)
   } else {
-    return parsers.read(term, env, state)
+    return parsers.read(term, __env, state)
   }
 }
 
-const parseQuery = (query: FullQuery, env: Env): Array<object> => {
-  if (env === undefined) {
+const parseQuery = (query: FullQuery, __env: Env): Array<object> => {
+  if (__env === undefined) {
     return parseQuery(query, {})
   }
 
-  return query.map(queryTerm => parseQueryTerm(queryTerm, env))
-}
-
-
-interface Attributes {
-  [propName: string]: (string | number | [] | {} | boolean | Attributes);
-}
-
-interface FullQueryMap extends Attributes {
-  env: Env;
-  query: FullQuery;
+  return query.map(queryTerm => parseQueryTerm(queryTerm, __env))
 }
 
 function makeAtts(res: object, [k, v]:[string, object]): object {return ({ ...res, [k]: v })}
 
 export function parseQueryIntoMap(
-  query: FullQuery,
-  env: Env = {},
+  __query: FullQuery,
+  __env: Env = {},
   _state: object = state,
   _parsers: {[parser: string]: Function} = parsers,
 ): FullQueryMap {
-  const queryNames: string[] = query.map(v => v[0])
-  const queryResult = parseQuery(query, env)
+  const queryNames: string[] = __query.map(v => v[0])
+  const queryResult = parseQuery(__query, __env)
 
   const atts = zip(queryNames, queryResult).reduce(makeAtts, {})
   const key = atts[queryNames[0]]
   return {
-    env,
-    query,
-    key,
+    __env,
+    __query,
+    key: typeof key === 'string' ? key : 'unique',
     ...atts,
   }
 }
@@ -242,10 +243,10 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]:FullTerm) {
   return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote]
 }
 
-function parseQueryTermSync(queryTerm: FullTerm, result: object, env: Env) {
+function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
   const syncFun = parsers.sync[queryTerm[0]]
   if (syncFun) {
-    syncFun(queryTerm, result, env, state)
+    syncFun(queryTerm, result, __env, state)
   } else {
     //TODO: Missing sync parser warning
   }
@@ -283,41 +284,41 @@ export function mapDelta(map1:{}, map2:{}):{} {
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {})
 }
 
-export function loopRootQuery(queryTerm: FullTerm, env?: Env): FullTerm {
-  if (env) {
-    const parentEnv = env.parentEnv
-    const newEnv: Env = { ...(parentEnv ? mapDelta(parentEnv, env) : env) }
-    delete newEnv.parentEnv
-    delete newEnv.queryKey
-    return loopRootQuery([env.queryKey, newEnv, queryTerm], parentEnv)
+export function loopRootQuery(queryTerm: FullTerm, __env?: Env): FullTerm {
+  if (__env) {
+    const __parentEnv = __env.__parentEnv
+    const newEnv: Env = { ...(__parentEnv ? mapDelta(__parentEnv, __env) : __env) }
+    delete newEnv.__parentEnv
+    delete newEnv.__queryKey
+    return loopRootQuery([__env.__queryKey, newEnv, queryTerm], __parentEnv)
   } else {
     return queryTerm
   }
 }
 
-export function makeRootQuery(env: Env, query: FullQuery) {
+export function makeRootQuery(__env: Env, query: FullQuery) {
   return query.map(queryTerm => {
-    return loopRootQuery(queryTerm, env.parentEnv)
+    return loopRootQuery(queryTerm, __env.__parentEnv)
   })
 }
 
-export function parseChildren(term: FullTerm, env: Env, _state = state, _parsers = parsers) {
+export function parseChildren(term: FullTerm, __env: Env, _state = state, _parsers = parsers) {
   const [, , ...query] = term
-  const newEnv = { ...env, parentEnv: { ...env, queryKey: term[0] } }
+  const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } }
   return parseQueryIntoMap(query, newEnv, _state, _parsers)
 }
 
 interface QLProps {
-  env: Env,
-  query: FullQuery,
-  key?: string | number,
+  __env: Env,
+  __query: FullQuery,
+  key?: string,
   [prop: string]: object | string | number,
 }
 
 export function transact(props: QLProps, query: FullQuery, _state = state, _parsers = parsers) {
-  const { env, query: componentQuery } = props
-  const rootQuery = makeRootQuery(env, [...query, ...componentQuery])
-  parseQuery(rootQuery, env)
+  const { __env, __query: componentQuery } = props
+  const rootQuery = makeRootQuery(__env, [...query, ...componentQuery])
+  parseQuery(rootQuery, __env)
   performRemoteQuery(parseQueryRemote(rootQuery))
   refresh({skipRemote:false})
 }
