@@ -173,15 +173,13 @@ interface Attributes {
 interface FullQueryMap extends Attributes {
   __env: Env;
   __query: FullQuery;
-  key: any;
+  key: string;
 }
 
-const registry: Map<QueryKey, FullQuery> = new Map();
-const idRegistry: Map<QueryKey, string> = new Map();
+const registry: Map<any, FullQuery> = new Map();
 
 export const query = (query: FullQuery, id: string) => (key: QueryKey) => {
   registry.set(key, query);
-  id && idRegistry.set(key, id);
   return key;
 };
 
@@ -195,7 +193,6 @@ export function getQuery(key: QueryKey): FullQuery {
 
 export function clearRegistry(): void {
   registry.clear();
-  idRegistry.clear();
 }
 
 interface Env {
@@ -299,7 +296,6 @@ function refresh({ skipRemote } = { skipRemote: true }) {
           return query;
         };
     const atts = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
-    console.log(Component);
     ReactDOM.render(instance(Component, atts), element);
   }
 }
@@ -389,24 +385,14 @@ export function unfoldQuery(query: FoldedQuery): FullQuery {
 
 export function mount({
   state: _st,
-  remoteHandler: _rh
-}: {
-  state: object;
-  remoteHandler: Function;
+  remoteHandler: _rh,
+  component,
+  element: _el
 }) {
   state = _st;
   remoteHandler = _rh;
+  Component = component;
+  element = _el;
 
-  return ({
-    component,
-    element: _el
-  }: {
-    component: React.FunctionComponent | React.ComponentClass;
-    element: HTMLElement;
-  }) => {
-    Component = component;
-    element = _el;
-
-    refresh();
-  };
+  refresh();
 }

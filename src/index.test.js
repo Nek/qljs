@@ -68,8 +68,9 @@ describe("ql", () => {
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
         name: "Bob",
         age: 29,
-        env: { personId: "0" },
-        query
+        key: "Bob",
+        __env: { personId: "0" },
+        __query: query
       });
     });
     it("should parse nested queries", () => {
@@ -77,30 +78,33 @@ describe("ql", () => {
       const env = {};
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
         people: expect.anything(),
-        env: expect.anything(),
-        query: expect.anything()
+        key: "unique",
+        __env: expect.anything(),
+        __query: expect.anything()
       });
 
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
-        env: expect.anything(),
+        __env: expect.anything(),
         people: [
           {
             name: "Bob",
             age: 29,
+            key: "Bob",
 
-            env: expect.anything(),
-            query: expect.anything()
+            __env: expect.anything(),
+            __query: expect.anything()
           },
           {
             name: "John",
             age: 35,
+            key: "John",
 
-            env: expect.anything(),
-            query: expect.anything()
+            __env: expect.anything(),
+            __query: expect.anything()
           }
         ],
 
-        query: expect.anything()
+        __query: expect.anything()
       });
 
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
@@ -108,18 +112,22 @@ describe("ql", () => {
           {
             age: expect.anything(),
             name: expect.anything(),
-            env: expect.anything(),
-            query: [["name"], ["age"]]
+            __env: expect.anything(),
+            key: "unique",
+
+            __query: [["name"], ["age"]]
           },
           {
             age: expect.anything(),
             name: expect.anything(),
-            env: expect.anything(),
-            query: [["name"], ["age"]]
+            __env: expect.anything(),
+            key: "unique",
+
+            __query: [["name"], ["age"]]
           }
         ],
-        env: {},
-        query
+        __env: {},
+        __query: query
       });
 
       expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
@@ -128,7 +136,7 @@ describe("ql", () => {
             name: "Bob",
             age: 29,
             env: expect.objectContaining({
-              parentEnv: { personId: "0", queryKey: "people" },
+              __parentEnv: { personId: "0", queryKey: "people" },
               personId: "0"
             }),
             query: [["name"], ["age"]]
@@ -136,15 +144,15 @@ describe("ql", () => {
           {
             name: "John",
             age: 35,
-            env: expect.objectContaining({
-              parentEnv: { personId: "1", queryKey: "people" },
+            __env: expect.objectContaining({
+              __parentEnv: { personId: "1", queryKey: "people" },
               personId: "1"
             }),
-            query: [["name"], ["age"]]
+            __query: [["name"], ["age"]]
           }
         ],
-        env: expect.anything(),
-        query
+        __env: expect.anything(),
+        __query: query
       });
     });
   });
