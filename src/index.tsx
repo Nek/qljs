@@ -190,7 +190,7 @@ interface Context extends FullQueryMap {}
 
 const registry: Map<any, FoldedQuery> = new Map();
 
-export const query = (query: FoldedQuery) => (key: QueryKey) => {
+export const query = (query: FoldedQuery, key: QueryKey) => {
   registry.set(key, query);
   return key;
 };
