@@ -110,13 +110,13 @@ export const parsers = {
 };
 
 export const map = (
-  atts: Attributes | Array<Attributes>,
+  ctx: Context | Array<Context>,
   Component: React.FunctionComponent | React.ComponentClass
 ) =>
-  Array.isArray(atts) ? (
-    atts.map(atts => <Component {...atts} />)
+  Array.isArray(ctx) ? (
+    ctx.map(ctx => <Component {...ctx} />)
   ) : (
-    <Component {...atts} />
+    <Component {...ctx} />
   );
 
 type QueryKey = React.FunctionComponent | React.ComponentClass;
@@ -186,18 +186,20 @@ interface FullQueryMap extends Attributes {
   key: string;
 }
 
-const registry: Map<any, FullQuery> = new Map();
+interface Context extends FullQueryMap {}
 
-export const query = (query: FullQuery, id: string) => (key: QueryKey) => {
+const registry: Map<any, FoldedQuery> = new Map();
+
+export const query = (query: FoldedQuery) => (key: QueryKey) => {
   registry.set(key, query);
   return key;
 };
 
-export const instance = (Component: QueryKey, atts: FullQueryMap) => (
-  <Component {...atts} />
+export const instance = (Component: QueryKey, ctx: FullQueryMap) => (
+  <Component {...ctx} />
 );
 
-export function getQuery(key: QueryKey): FullQuery {
+export function getQuery(key: QueryKey): FoldedQuery {
   return registry.get(key);
 }
 
