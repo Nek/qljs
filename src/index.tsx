@@ -109,6 +109,16 @@ export const parsers = {
   sync
 };
 
+export const map = (
+  atts: Attributes | Array<Attributes>,
+  Component: React.FunctionComponent | React.ComponentClass
+) =>
+  Array.isArray(atts) ? (
+    atts.map(atts => <Component {...atts} />)
+  ) : (
+    <Component {...atts} />
+  );
+
 type QueryKey = React.FunctionComponent | React.ComponentClass;
 
 let Component: QueryKey;
