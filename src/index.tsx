@@ -109,7 +109,7 @@ export const parsers = {
   sync
 };
 
-export const map = (
+export const render = (
   ctx: Context | Array<Context>,
   Component: React.FunctionComponent | React.ComponentClass
 ) =>
@@ -119,9 +119,9 @@ export const map = (
     <Component {...ctx} />
   );
 
-type QueryKey = React.FunctionComponent | React.ComponentClass;
+type RenderFunction = React.FunctionComponent;
 
-let Component: QueryKey;
+let Component: RenderFunction;
 let element: HTMLElement;
 let state: object;
 let remoteHandler: Function;
@@ -152,7 +152,7 @@ interface FullTerm extends Array<any> {
 
 type FoldedQuery = Array<Term>;
 
-type TermItem = Term | QueryKey;
+type TermItem = Term | RenderFunction;
 
 interface Term extends Array<any> {
   0: string;
@@ -190,16 +190,16 @@ interface Context extends FullQueryMap {}
 
 const registry: Map<any, FoldedQuery> = new Map();
 
-export const query = (query: FoldedQuery, key: QueryKey) => {
+export const component = (query: FoldedQuery, key: RenderFunction) => {
   registry.set(key, query);
   return key;
 };
 
-export const instance = (Component: QueryKey, ctx: FullQueryMap) => (
+export const instance = (Component: RenderFunction, ctx: FullQueryMap) => (
   <Component {...ctx} />
 );
 
-export function getQuery(key: QueryKey): FoldedQuery {
+export function getQuery(key: RenderFunction): FoldedQuery {
   return registry.get(key);
 }
 

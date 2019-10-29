@@ -7,7 +7,7 @@ import {
   makeRootQuery,
   mapDelta,
   unfoldQuery,
-  query,
+  component,
   parsers,
   transact,
   parseChildrenRemote
@@ -57,7 +57,7 @@ describe("ql", () => {
       }
     };
     const Component = () => null;
-    query([["people"]], Component);
+    component([["people"]], Component);
     mount({ state, remoteHandler: () => ({ then: v => v }) })(Component, {});
   });
 
@@ -204,7 +204,7 @@ describe("ql", () => {
     });
     it("unfolds a term with chidlren query", () => {
       const F = () => {};
-      query([["data"]])(F);
+      component([["data"]])(F);
       expect(unfoldQuery([["some", F]])).toEqual([["some", {}, ["data", {}]]]);
       clearRegistry();
     });
