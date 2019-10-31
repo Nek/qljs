@@ -195,10 +195,6 @@ export const component = (query: FoldedQuery, key: RenderFunction) => {
   return key;
 };
 
-export const instance = (Component: RenderFunction, ctx: FullQueryMap) => (
-  <Component {...ctx} />
-);
-
 export function getQuery(key: RenderFunction): FoldedQuery {
   return registry.get(key);
 }
@@ -229,7 +225,7 @@ const parseQuery = (query: FullQuery, __env: Env): Array<object> => {
   return query.map(queryTerm => parseQueryTerm(queryTerm, __env));
 };
 
-function makeAtts(res: object, [k, v]: [string, object]): object {
+function makeCtx(res: object, [k, v]: [string, object]): object {
   return { ...res, [k]: v };
 }
 
@@ -242,13 +238,13 @@ export function parseQueryIntoMap(
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
-  const atts = zip(queryNames, queryResult).reduce(makeAtts, {});
-  const key = atts[queryNames[0]];
+  const ctx = zip(queryNames, queryResult).reduce(makeCtx, {});
+  const key = ctx[queryNames[0]];
   return {
     __env,
     __query,
     key: typeof key === "string" ? key : "unique",
-    ...atts
+    ...ctx
   };
 }
 
@@ -307,8 +303,8 @@ function refresh({ skipRemote } = { skipRemote: true }) {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
-    const atts = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
-    ReactDOM.render(instance(Component, atts), element);
+    const ctx = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
+    ReactDOM.render(<Component {...ctx} />, element);
   }
 }
 
