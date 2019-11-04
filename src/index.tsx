@@ -165,15 +165,15 @@ interface Term extends Array<any> {
 
 interface Attributes {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
+  key?: string;
 }
 
-interface FullQueryMap extends Attributes {
+interface QLProps extends Attributes, Context {}
+
+interface Context {
   __env: Env;
   __query: FullQuery;
-  key: string;
 }
-
-interface Context extends FullQueryMap {}
 
 const registry: Map<any, FoldedQuery> = new Map();
 
@@ -221,21 +221,21 @@ function makeCtx(res: object, [k, v]: [string, object]): object {
   return { ...res, [k]: v };
 }
 
-export function parseQueryIntoMap(
+export function parseQueryIntoProps(
   __query: FullQuery,
   __env: Env = {},
   _state: object = state
-): FullQueryMap {
+): QLProps {
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
-  const ctx = zip(queryNames, queryResult).reduce(makeCtx, {});
-  const key = ctx[queryNames[0]];
+  const props = zip(queryNames, queryResult).reduce(makeCtx, {});
+  const key = props[queryNames[0]];
   return {
     __env,
     __query,
     key: typeof key === "string" ? key : "unique",
-    ...ctx
+    ...props
   };
 }
 
@@ -296,7 +296,7 @@ function refresh({ skipRemote } = { skipRemote: true }) {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
-    const ctx = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
+    const ctx = parseQueryIntoProps(perfRQ(unfoldQuery(getQuery(Component))));
     ReactDOM.render(
       <Component {...ctx} transact={query => transact(ctx, query)} />,
       element
@@ -333,7 +333,7 @@ export function makeRootQuery(__env: Env, query: FullQuery) {
 export function parseChildren(term: FullTerm, __env: Env, _state = state) {
   const [, , ...query] = term;
   const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
-  return parseQueryIntoMap(query, newEnv, _state);
+  return parseQueryIntoProps(query, newEnv, _state);
 }
 
 interface QLProps {

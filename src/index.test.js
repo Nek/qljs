@@ -1,7 +1,7 @@
 import {
   mount,
   clearRegistry,
-  parseQueryIntoMap,
+  parseQueryIntoProps,
   parseChildren,
   multimethod,
   makeRootQuery,
@@ -65,7 +65,7 @@ describe("ql", () => {
     it("should parse a simple query", () => {
       const query = [["name"], ["age"]];
       const env = { personId: "0" };
-      expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
         name: "Bob",
         age: 29,
         key: "Bob",
@@ -76,14 +76,14 @@ describe("ql", () => {
     it("should parse nested queries", () => {
       const query = [["people", {}, ["name"], ["age"]]];
       const env = {};
-      expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
         people: expect.anything(),
         key: "unique",
         __env: expect.anything(),
         __query: expect.anything()
       });
 
-      expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
         __env: expect.anything(),
         people: [
           {
@@ -107,7 +107,7 @@ describe("ql", () => {
         __query: expect.anything()
       });
 
-      expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
         people: [
           {
             age: expect.anything(),
@@ -130,7 +130,7 @@ describe("ql", () => {
         __query: query
       });
 
-      expect(parseQueryIntoMap(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
         people: [
           {
             name: "Bob",
