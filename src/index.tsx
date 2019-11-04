@@ -65,7 +65,7 @@ const parserNoMatch = (id: string, key: string | number | symbol): void => {
 };
 const alreadyDefined = (id: string, key: string | number | symbol): void => {
   throw new Error(
-    `${String(id)} parser already has method for "${String(key)}".`
+    `${String(id)} parser is already defined for "${String(key)}".`
   );
 };
 
@@ -73,33 +73,26 @@ function id<T>(v: T): T {
   return v;
 }
 
-const readDict = {};
-export const read = (id, parser) => {
-  readDict[id] = parser;
-};
-const _read = (term, env, state) => {
-  const parser = readDict[term[0]];
-  if (parser === undefined) {
-    parserNoMatch("Read", term[0]);
-    return null;
+const metaParser = (name, dict) => (id, parser) => {
+  const maybeParser = dict[id];
+  if (maybeParser) {
+    alreadyDefined(name, id);
+  } else {
+    dict[id] = parser;
   }
-  return readDict[term[0]](term, env, state);
 };
+
+const readDict = {};
+export const read = metaParser("Read", readDict);
 
 const mutateDict = {};
-export const mutate = (id, parser) => {
-  mutateDict[id] = parser;
-};
+export const mutate = metaParser("Mutate", mutateDict);
 
 const remoteDict = {};
-export const remote = (id, parser) => {
-  remoteDict[id] = parser;
-};
+export const remote = metaParser("Remote", remoteDict);
 
 const syncDict = {};
-export const sync = (id, parser) => {
-  syncDict[id] = parser;
-};
+export const sync = metaParser("Sync", syncDict);
 
 export const render = (
   ctx: Context | Array<Context>,
@@ -207,7 +200,12 @@ const parseQueryTerm = (term: FullTerm, __env: Env): object => {
   if (mutateFn) {
     return mutateFn(term, __env, state);
   } else {
-    return _read(term, __env, state);
+    const parser = readDict[term[0]];
+    if (parser === undefined) {
+      parserNoMatch("Read", term[0]);
+      return null;
+    }
+    return readDict[term[0]](term, __env, state);
   }
 };
 
@@ -267,6 +265,7 @@ function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
   if (syncFun) {
     syncFun(queryTerm, result, __env, state);
   } else {
+    parserNoMatch("Sync", queryTerm[0]);
     //TODO: Missing sync parser warning
   }
 }
