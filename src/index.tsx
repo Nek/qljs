@@ -96,19 +96,19 @@ export const sync = metaParser("Sync", syncDict);
 
 export const render = (
   ctx: Context | Array<Context>,
-  Component: React.FunctionComponent | React.ComponentClass
+  Component: React.FunctionComponent<Attributes & Context>
 ) =>
   Array.isArray(ctx) ? (
     ctx.map(ctx => (
-      <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />
+      <Component {...ctx} transact={query => transact(ctx, query)} />
     ))
   ) : (
-    <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />
+    <Component {...ctx} transact={query => transact(ctx, query)} />
   );
 
 type RenderFunction = React.FunctionComponent;
 
-let Component: RenderFunction;
+let Component: React.FunctionComponent<Attributes & Context>;
 let element: HTMLElement;
 let state: object;
 let remoteHandler: Function;
@@ -298,7 +298,7 @@ function refresh({ skipRemote } = { skipRemote: true }) {
         };
     const ctx = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
     ReactDOM.render(
-      <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />,
+      <Component {...ctx} transact={query => transact(ctx, query)} />,
       element
     );
   }
