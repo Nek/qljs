@@ -90,33 +90,15 @@ const mutateDict = {};
 export const mutate = (id, parser) => {
   mutateDict[id] = parser;
 };
-const _mutate = (term, env, state) => {
-  const parser = mutateDict[term[0]];
-  if (parser === undefined) {
-    parserNoMatch("Read", term[0]);
-    return null;
-  }
-  return mutateDict[term[0]](term, env, state);
+
+const remoteDict = {};
+export const remote = (id, parser) => {
+  remoteDict[id] = parser;
 };
 
-const remote: Multimethod = multimethod(
-  first,
-  "remote",
-  id,
-  alreadyDefined,
-  parserNoMatch
-);
-const sync: Multimethod = multimethod(
-  first,
-  "sync",
-  id,
-  alreadyDefined,
-  parserNoMatch
-);
-
-export const parsers = {
-  remote,
-  sync
+const syncDict = {};
+export const sync = (id, parser) => {
+  syncDict[id] = parser;
 };
 
 export const render = (
@@ -244,8 +226,7 @@ function makeCtx(res: object, [k, v]: [string, object]): object {
 export function parseQueryIntoMap(
   __query: FullQuery,
   __env: Env = {},
-  _state: object = state,
-  _parsers: { [parser: string]: Function } = parsers
+  _state: object = state
 ): FullQueryMap {
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
@@ -262,8 +243,9 @@ export function parseQueryIntoMap(
 
 function parseQueryRemote(query: FullQuery) {
   return query.reduce((acc, term) => {
-    if (parsers.remote[term[0]]) {
-      const v = parsers.remote(term, state);
+    const remote = remoteDict[term[0]];
+    if (remote) {
+      const v = remote(term, state);
       if (v) {
         return [...acc, v];
       } else {
@@ -281,7 +263,7 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
 }
 
 function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
-  const syncFun = parsers.sync[queryTerm[0]];
+  const syncFun = syncDict[queryTerm[0]];
   if (syncFun) {
     syncFun(queryTerm, result, __env, state);
   } else {
@@ -349,15 +331,10 @@ export function makeRootQuery(__env: Env, query: FullQuery) {
   });
 }
 
-export function parseChildren(
-  term: FullTerm,
-  __env: Env,
-  _state = state,
-  _parsers = parsers
-) {
+export function parseChildren(term: FullTerm, __env: Env, _state = state) {
   const [, , ...query] = term;
   const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
-  return parseQueryIntoMap(query, newEnv, _state, _parsers);
+  return parseQueryIntoMap(query, newEnv, _state);
 }
 
 interface QLProps {
@@ -370,8 +347,7 @@ interface QLProps {
 export function transact(
   { __env, __query: componentQuery },
   query: FullQuery,
-  _state = state,
-  _parsers = parsers
+  _state = state
 ) {
   const rootQuery = makeRootQuery(__env, [...query, ...componentQuery]);
   parseQuery(rootQuery, __env);
