@@ -61,7 +61,7 @@ function first<T>(a: Array<T>): T {
 }
 
 const parserNoMatch = (id: string, key: string | number | symbol): void => {
-  console.warn(`${String(id)} parser method for "${String(key)}" is missing.`);
+  console.warn(`${String(id)} parser for "${String(key)}" is missing.`);
 };
 const alreadyDefined = (id: string, key: string | number | symbol): void => {
   throw new Error(
@@ -73,20 +73,32 @@ function id<T>(v: T): T {
   return v;
 }
 
-const read: Multimethod = multimethod(
-  first,
-  "read",
-  id,
-  alreadyDefined,
-  parserNoMatch
-);
-const mutate: Multimethod = multimethod(
-  first,
-  "mutate",
-  id,
-  alreadyDefined,
-  parserNoMatch
-);
+const readDict = {};
+export const read = (id, parser) => {
+  readDict[id] = parser;
+};
+const _read = (term, env, state) => {
+  const parser = readDict[term[0]];
+  if (parser === undefined) {
+    parserNoMatch("Read", term[0]);
+    return null;
+  }
+  return readDict[term[0]](term, env, state);
+};
+
+const mutateDict = {};
+export const mutate = (id, parser) => {
+  mutateDict[id] = parser;
+};
+const _mutate = (term, env, state) => {
+  const parser = mutateDict[term[0]];
+  if (parser === undefined) {
+    parserNoMatch("Read", term[0]);
+    return null;
+  }
+  return mutateDict[term[0]](term, env, state);
+};
+
 const remote: Multimethod = multimethod(
   first,
   "remote",
@@ -103,8 +115,6 @@ const sync: Multimethod = multimethod(
 );
 
 export const parsers = {
-  read,
-  mutate,
   remote,
   sync
 };
@@ -211,11 +221,11 @@ interface Env {
 }
 
 const parseQueryTerm = (term: FullTerm, __env: Env): object => {
-  const mutateFn = parsers.mutate && parsers.mutate[term[0]];
+  const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
     return mutateFn(term, __env, state);
   } else {
-    return parsers.read(term, __env, state);
+    return _read(term, __env, state);
   }
 };
 
