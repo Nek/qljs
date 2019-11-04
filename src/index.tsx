@@ -114,9 +114,11 @@ export const render = (
   Component: React.FunctionComponent | React.ComponentClass
 ) =>
   Array.isArray(ctx) ? (
-    ctx.map(ctx => <Component {...ctx} />)
+    ctx.map(ctx => (
+      <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />
+    ))
   ) : (
-    <Component {...ctx} />
+    <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />
   );
 
 type RenderFunction = React.FunctionComponent;
@@ -304,7 +306,10 @@ function refresh({ skipRemote } = { skipRemote: true }) {
           return query;
         };
     const ctx = parseQueryIntoMap(perfRQ(unfoldQuery(getQuery(Component))));
-    ReactDOM.render(<Component {...ctx} />, element);
+    ReactDOM.render(
+      <Component {...{ ...ctx, transact: query => transact(ctx, query) }} />,
+      element
+    );
   }
 }
 
@@ -353,12 +358,11 @@ interface QLProps {
 }
 
 export function transact(
-  props: QLProps,
+  { __env, __query: componentQuery },
   query: FullQuery,
   _state = state,
   _parsers = parsers
 ) {
-  const { __env, __query: componentQuery } = props;
   const rootQuery = makeRootQuery(__env, [...query, ...componentQuery]);
   parseQuery(rootQuery, __env);
   performRemoteQuery(parseQueryRemote(rootQuery));
