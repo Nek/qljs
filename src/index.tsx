@@ -257,14 +257,12 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
   return Array.isArray(chiRemote) && [...[dispatchKey, params], ...chiRemote];
 }
 
-function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
-  const term = compressTerm(queryTerm);
+function parseQueryTermSync(term: FullTerm, result: object, __env: Env) {
   const syncFun = syncDict[term[0]];
   if (syncFun) {
     syncFun(term, result, __env, state);
   } else {
     parserNoMatch("Sync", term[0]);
-    //TODO: Missing sync parser warning
   }
 }
 
@@ -295,7 +293,7 @@ function performRemoteQuery(query: FullQuery) {
     const [tag, params] = compressTerm(term)
     remoteHandler(tag, params).then(results => {
       zip(query, results).forEach(([k, v]: [FullTerm, any]) => {
-        parseQueryTermSync(k, v, {});
+        parseQueryTermSync(compressTerm(k), v, {});
       });
       refresh();
     });
