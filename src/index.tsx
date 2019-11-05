@@ -296,9 +296,9 @@ function refresh({ skipRemote } = { skipRemote: true }) {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
-    const ctx = parseQueryIntoProps(perfRQ(unfoldQuery(getQuery(Component))));
+    const props = parseQueryIntoProps(perfRQ(unfoldQuery(getQuery(Component))));
     ReactDOM.render(
-      <Component {...ctx} transact={query => transact(ctx, query)} />,
+      <Component {...props} transact={query => transact(props, query)} />,
       element
     );
   }
