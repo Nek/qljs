@@ -20,16 +20,23 @@ const metaParser = (name, dict) => (id, parser) => {
 };
 
 const readDict = {};
-export const read = metaParser("Read", readDict);
+const read = metaParser("Read", readDict);
 
 const mutateDict = {};
-export const mutate = metaParser("Mutate", mutateDict);
+const mutate = metaParser("Mutate", mutateDict);
 
 const remoteDict = {};
-export const remote = metaParser("Remote", remoteDict);
+const remote = metaParser("Remote", remoteDict);
 
 const syncDict = {};
-export const sync = metaParser("Sync", syncDict);
+const sync = metaParser("Sync", syncDict);
+
+export const parsers = {
+  read,
+  mutate,
+  remote,
+  sync
+};
 
 export const render = (
   ctx: Context | Array<Context>,
