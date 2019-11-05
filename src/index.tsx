@@ -1,65 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
-interface Multimethod extends Function {}
-
-const noMatchWarningDefault = (id: string, key: string): void => {
-  console.warn(`No match for "${key}" on multimethod "${id}".`);
-};
-const alreadyDefinedErrorDefault = (
-  id: string,
-  key: string | number | symbol
-): void => {
-  throw new Error(`Multimethod ${id} already has "${String(key)}" method.`);
-};
-
-/**
-Ad-hoc polymorphism for JS.
-dispatch - function that takes incoming parameteres and returns the actual method name
-defaultMethod - default action for missing methods
-alreadyDefined - overwriting existing method error message formatter
-noMatchWarning -  missing method call warning message formatter
-**/
-export function multimethod(
-  dispatch: Function,
-  id: string = "default",
-  defaultMethod: Function = () => null,
-  alreadyDefined: Function = alreadyDefinedErrorDefault,
-  noMatchWarning: Function = noMatchWarningDefault
-): Multimethod {
-  const dict = {};
-
-  return new Proxy<Function>(defaultMethod, {
-    set(_, property, value) {
-      if (dict[property] !== undefined) {
-        alreadyDefined(id, property);
-      }
-      dict[property] = value;
-      return true;
-    },
-    get(_, property) {
-      return dict[property];
-    },
-    apply(target, thisArg, args) {
-      const key = dispatch.apply(null, args);
-      const func =
-        key && dict.hasOwnProperty(key)
-          ? dict[key]
-          : dict.hasOwnProperty("noMatch")
-          ? dict["noMatch"]
-          : (...args) => {
-              noMatchWarning(id, key);
-              return target(...args);
-            };
-      return func.apply(thisArg, args);
-    }
-  });
-}
-
-function first<T>(a: Array<T>): T {
-  return a[0];
-}
-
 const parserNoMatch = (id: string, key: string | number | symbol): void => {
   console.warn(`${String(id)} parser for "${String(key)}" is missing.`);
 };
@@ -68,10 +9,6 @@ const alreadyDefined = (id: string, key: string | number | symbol): void => {
     `${String(id)} parser is already defined for "${String(key)}".`
   );
 };
-
-function id<T>(v: T): T {
-  return v;
-}
 
 const metaParser = (name, dict) => (id, parser) => {
   const maybeParser = dict[id];
@@ -217,7 +154,7 @@ const parseQuery = (query: FullQuery, __env: Env): Array<object> => {
   return query.map(queryTerm => parseQueryTerm(queryTerm, __env));
 };
 
-function makeCtx(res: object, [k, v]: [string, object]): object {
+function makeProps(res: object, [k, v]: [string, object]): object {
   return { ...res, [k]: v };
 }
 
@@ -229,7 +166,7 @@ export function parseQueryIntoProps(
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
-  const props = zip(queryNames, queryResult).reduce(makeCtx, {});
+  const props = zip(queryNames, queryResult).reduce(makeProps, {});
   const key = props[queryNames[0]];
   return {
     __env,
@@ -289,8 +226,8 @@ Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: FullQuery) {
   if (remoteHandler && Array.isArray(query) && query.length > 0) {
-    const [term] = query
-    const [tag, params] = compressTerm(term)
+    const [term] = query;
+    const [tag, params] = compressTerm(term);
     remoteHandler(tag, params).then(results => {
       zip(query, results).forEach(([k, v]: [FullTerm, any]) => {
         parseQueryTermSync(compressTerm(k), v, {});
