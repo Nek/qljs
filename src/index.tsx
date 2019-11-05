@@ -244,11 +244,7 @@ function parseQueryRemote(query: FullQuery) {
     const remote = remoteDict[term[0]];
     if (remote) {
       const v = remote(term, state);
-      if (v) {
-        return [...acc, v];
-      } else {
-        return acc;
-      }
+      return v ? [...acc, v] : acc;
     } else {
       return acc;
     }
@@ -262,6 +258,7 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
 
 function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
   const syncFun = syncDict[queryTerm[0]];
+  console.log('!!!!!',queryTerm[0])
   if (syncFun) {
     syncFun(queryTerm, result, __env, state);
   } else {
