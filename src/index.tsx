@@ -45,7 +45,7 @@ export const render = (
 
 type RenderFunction = React.FunctionComponent;
 
-let Component: React.FunctionComponent<Attributes & Context>;
+let RootComponent: React.FunctionComponent<Attributes & Context>;
 let element: HTMLElement;
 let state: object;
 let remoteHandler: Function;
@@ -238,16 +238,18 @@ function performRemoteQuery(query: FullQuery) {
 }
 
 function refresh({ skipRemote } = { skipRemote: true }) {
-  if (Component !== undefined) {
+  if (RootComponent !== undefined) {
     const perfRQ = skipRemote
       ? v => v
       : (query: FullQuery) => {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
-    const props = parseQueryIntoProps(perfRQ(unfoldQuery(getQuery(Component))));
+    const props = parseQueryIntoProps(
+      perfRQ(unfoldQuery(getQuery(RootComponent)))
+    );
     ReactDOM.render(
-      <Component {...props} transact={query => transact(props, query)} />,
+      <RootComponent {...props} transact={query => transact(props, query)} />,
       element
     );
   }
@@ -273,12 +275,6 @@ export function loopRootQuery(queryTerm: FullTerm, __env?: Env): FullTerm {
   }
 }
 
-export function makeRootQuery(__env: Env, query: FullQuery) {
-  return query.map(queryTerm => {
-    return loopRootQuery(queryTerm, __env.__parentEnv);
-  });
-}
-
 export function parseChildren(term: FullTerm, __env: Env, _state = state) {
   const [, , ...query] = term;
   const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
@@ -292,12 +288,19 @@ interface QLProps {
   [prop: string]: object | string | number;
 }
 
+export function makeRootQuery(__env: Env, query: FullQuery) {
+  return query.map(queryTerm => {
+    return loopRootQuery(queryTerm, __env.__parentEnv);
+  });
+}
 export function transact(
   { __env, __query: componentQuery },
   query: FullQuery,
   _state = state
 ) {
-  const rootQuery = makeRootQuery(__env, [...query, ...componentQuery]);
+  const rootQuery = [...query, ...componentQuery].map(queryTerm => {
+    return loopRootQuery(queryTerm, __env.__parentEnv);
+  });
   parseQuery(rootQuery, __env);
   performRemoteQuery(parseQueryRemote(rootQuery));
   refresh({ skipRemote: false });
@@ -329,16 +332,12 @@ export function unfoldQuery(query: FoldedQuery): FullQuery {
   return query.map(unfoldQueryTerm);
 }
 
-export function mount({
-  state: _st,
-  remoteHandler: _rh,
-  component,
-  element: _el
-}) {
+export function init({ state: _st, remoteHandler: _rh }) {
   state = _st;
   remoteHandler = _rh;
-  Component = component;
-  element = _el;
-
-  refresh();
+  return ({ Component, element: _el }) => {
+    RootComponent = Component;
+    element = _el;
+    refresh();
+  };
 }
