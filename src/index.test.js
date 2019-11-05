@@ -3,33 +3,29 @@ import {
   clearRegistry,
   parseQueryIntoProps,
   parseChildren,
-  multimethod,
   makeRootQuery,
   mapDelta,
   unfoldQuery,
   component,
-  parsers,
   transact,
-  parseChildrenRemote
+  parseChildrenRemote,
+  sync,
+  read,
+  mutate,
+  remote
 } from "./index.tsx";
-
-const dispatch = ([first]) => first;
-const noMatch = term => {
-  throw new Error("No match for " + term);
-};
 
 describe("ql", () => {
   let state;
-  let { sync, read, mutate, remote } = parsers;
 
-  read["name"] = (term, { personId }, state) => {
+  read("name", (term, { personId }, state) => {
     return state.people[personId] && state.people[personId].name;
-  };
+  });
 
-  read["age"] = (term, { personId }, state) => {
+  read("age", (term, { personId }, state) => {
     return state.people[personId] && state.people[personId].age;
-  };
-  read["people"] = (term, env, state) => {
+  });
+  read("people", (term, env, state) => {
     const [, { personId }] = term;
     if (personId) {
       return parseChildren(term, { ...env, personId });
@@ -39,15 +35,15 @@ describe("ql", () => {
       );
       return res;
     }
-  };
+  });
 
-  mutate["delete"] = ([key, { personId }], env, state) => {
+  mutate("delete", ([key, { personId }], env, state) => {
     delete state.people[personId];
-  };
+  });
 
-  remote["delete"] = (term, env, state) => {
+  remote("delete", (term, env, state) => {
     return term;
-  };
+  });
 
   beforeEach(() => {
     state = {
@@ -58,14 +54,14 @@ describe("ql", () => {
     };
     const Component = () => null;
     component([["people"]], Component);
-    mount({ state, remoteHandler: () => ({ then: v => v }) })(Component, {});
+    mount({ state, remoteHandler: () => ({ then: v => v }) }, Component, {});
   });
 
   describe("parseQueryIntoMap", () => {
     it("should parse a simple query", () => {
       const query = [["name"], ["age"]];
       const env = { personId: "0" };
-      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state)).toEqual({
         name: "Bob",
         age: 29,
         key: "Bob",
@@ -76,23 +72,40 @@ describe("ql", () => {
     it("should parse nested queries", () => {
       const query = [["people", {}, ["name"], ["age"]]];
       const env = {};
-      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
-        people: expect.anything(),
+      console.log(parseQueryIntoProps(query, env, state));
+      expect(parseQueryIntoProps(query, env, state)).toEqual({
+        __env: {},
+        __query: [["people", {}, expect.anything(), expect.anything()]],
         key: "unique",
-        __env: expect.anything(),
-        __query: expect.anything()
+        people: [
+          {
+            __env: expect.anything(),
+            __query: [Array],
+            key: "Bob",
+            name: "Bob",
+            age: 29
+          },
+          {
+            __env: expect.anything(),
+            __query: expect.anything(),
+            key: "John",
+            name: "John",
+            age: 35
+          }
+        ]
       });
 
-      expect(parseQueryIntoProps(query, env, state, { read })).toEqual({
+      expect(parseQueryIntoProps(query, env, state)).toEqual({
         __env: expect.anything(),
         people: [
           {
             name: "Bob",
             age: 29,
-            key: "Bob",
+            key: "unique",
 
             __env: expect.anything(),
-            __query: expect.anything()
+            __query: expect.anything(),
+            __queryKey: expect.anything()
           },
           {
             name: "John",
@@ -204,7 +217,7 @@ describe("ql", () => {
     });
     it("unfolds a term with chidlren query", () => {
       const F = () => {};
-      component([["data"]])(F);
+      component([["data"]], F);
       expect(unfoldQuery([["some", F]])).toEqual([["some", {}, ["data", {}]]]);
       clearRegistry();
     });
