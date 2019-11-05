@@ -240,7 +240,7 @@ export function parseQueryIntoProps(
 }
 
 function parseQueryRemote(query: FullQuery) {
-  return query.reduce((acc, term) => {
+  const result = query.reduce((acc, term) => {
     const remote = remoteDict[term[0]];
     if (remote) {
       const v = remote(term, state);
@@ -249,6 +249,7 @@ function parseQueryRemote(query: FullQuery) {
       return acc;
     }
   }, []);
+  return result;
 }
 
 export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
@@ -257,12 +258,12 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
 }
 
 function parseQueryTermSync(queryTerm: FullTerm, result: object, __env: Env) {
-  const syncFun = syncDict[queryTerm[0]];
-  console.log('!!!!!',queryTerm[0])
+  const term = compressTerm(queryTerm);
+  const syncFun = syncDict[term[0]];
   if (syncFun) {
-    syncFun(queryTerm, result, __env, state);
+    syncFun(term, result, __env, state);
   } else {
-    parserNoMatch("Sync", queryTerm[0]);
+    parserNoMatch("Sync", term[0]);
     //TODO: Missing sync parser warning
   }
 }
@@ -271,15 +272,31 @@ export function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
   return a1.map((x, i) => [x, a2[i]]);
 }
 
+function compressTerm(term): FullTerm {
+  const compressInner = (term, res) => {
+    if (term === undefined) {
+      return res;
+    } else {
+      res.tags.push(term[0]);
+      res.params.push(term[1]);
+      return compressInner(term[2], res);
+    }
+  };
+  const { tags, params } = compressInner(term, { tags: [], params: [] });
+  return [tags.reverse()[0], params.reduce((res, p) => ({ ...res, ...p }), {})];
+}
+
 /*
 Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: FullQuery) {
   if (remoteHandler && Array.isArray(query) && query.length > 0) {
-    remoteHandler(query).then(results => {
-      zip(query, results).forEach(([k, v]: [FullTerm, any]) =>
-        parseQueryTermSync(k, v, {})
-      );
+    const [term] = query
+    const [tag, params] = compressTerm(term)
+    remoteHandler(tag, params).then(results => {
+      zip(query, results).forEach(([k, v]: [FullTerm, any]) => {
+        parseQueryTermSync(k, v, {});
+      });
       refresh();
     });
   }
