@@ -59,53 +59,13 @@ let remoteHandler: Function;
 
 type FullQuery = Array<FullTerm>;
 
-interface FullTerm extends Array<any> {
-  0: string;
-  1: object;
-  2?: FullTerm;
-  3?: FullTerm;
-  4?: FullTerm;
-  5?: FullTerm;
-  6?: FullTerm;
-  7?: FullTerm;
-  8?: FullTerm;
-  9?: FullTerm;
-  10?: FullTerm;
-  11?: FullTerm;
-  12?: FullTerm;
-  13?: FullTerm;
-  14?: FullTerm;
-  15?: FullTerm;
-  16?: FullTerm;
-  17?: FullTerm;
-  18?: FullTerm;
-}
+type FullTerm = [string, object, ...FullTerm[]];
 
 type FoldedQuery = Array<Term>;
 
 type TermItem = Term | RenderFunction;
 
-interface Term extends Array<any> {
-  0: string;
-  1?: object | TermItem;
-  2?: TermItem;
-  3?: TermItem;
-  4?: TermItem;
-  6?: TermItem;
-  5?: TermItem;
-  7?: TermItem;
-  8?: TermItem;
-  9?: TermItem;
-  10?: TermItem;
-  11?: TermItem;
-  12?: TermItem;
-  13?: TermItem;
-  14?: TermItem;
-  15?: TermItem;
-  16?: TermItem;
-  17?: TermItem;
-  18?: TermItem;
-}
+type Term = [string, (object | TermItem), ...TermItem[]];
 
 interface Attributes {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
@@ -319,7 +279,7 @@ export function componentToQuery(something: any): FullQuery {
 }
 
 export function unfoldQueryTerm(term: Term): FullTerm {
-  let terms: Array<Term>;
+  let terms: (string | object | TermItem)[];
   const [tag, maybeParams] = term;
   let res: FullTerm;
   if (maybeParams && Object.getPrototypeOf(maybeParams) === Object.prototype) {
