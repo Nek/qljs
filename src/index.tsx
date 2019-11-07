@@ -49,7 +49,7 @@ export const parsers = {
 };
 
 export const render = (
-  ctx: Context | Array<Context>,
+  ctx: QLProps | Array<QLProps>,
   Component: React.FunctionComponent<Attributes & Context>
 ) =>
   Array.isArray(ctx) ? (
@@ -79,7 +79,7 @@ type Term = [string, (object | TermItem), ...TermItem[]];
 
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
-  key?: string;
+  key: string;
 };
 
 export type QLProps = Attributes & Context;
