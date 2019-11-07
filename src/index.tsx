@@ -1,6 +1,5 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import Environment = jest.Environment;
 
 const parserNoMatch = (id: string, key: string | number | symbol): void => {
   console.warn(`${String(id)} parser for "${String(key)}" is missing.`);
