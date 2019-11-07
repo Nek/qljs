@@ -70,14 +70,14 @@ type Term = [string, (object | TermItem), ...TermItem[]];
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
   key?: string;
-}
+};
 
 type QLProps = Attributes & Context;
 
 type Context = {
   __env: Env;
   __query: FullQuery;
-}
+};
 
 const registry: Map<any, FoldedQuery> = new Map();
 
@@ -97,7 +97,7 @@ export function clearRegistry(): void {
 type Env = {
   __parentEnv?: Env;
   __queryKey?: string;
-}
+};
 
 const parseQueryTerm = (term: FullTerm, __env: Env): object => {
   const mutateFn = mutateDict[term[0]];
