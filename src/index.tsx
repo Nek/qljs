@@ -67,14 +67,14 @@ type TermItem = Term | RenderFunction;
 
 type Term = [string, (object | TermItem), ...TermItem[]];
 
-interface Attributes {
+type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
   key?: string;
 }
 
-interface QLProps extends Attributes, Context {}
+type QLProps = Attributes & Context;
 
-interface Context {
+type Context = {
   __env: Env;
   __query: FullQuery;
 }
@@ -94,7 +94,7 @@ export function clearRegistry(): void {
   registry.clear();
 }
 
-interface Env {
+type Env = {
   __parentEnv?: Env;
   __queryKey?: string;
 }
@@ -246,13 +246,6 @@ export function parseChildren(term: FullTerm, __env: Env, _state = state) {
   const [, , ...query] = term;
   const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
   return parseQueryIntoProps(query, newEnv, _state);
-}
-
-interface QLProps {
-  __env: Env;
-  __query: FullQuery;
-  key?: string;
-  [prop: string]: object | string | number;
 }
 
 export function makeRootQuery(__env: Env, query: FullQuery) {
