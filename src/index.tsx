@@ -47,16 +47,24 @@ export const parsers = {
   sync
 };
 
-export const render = (
+const render = (
   ctx: QLProps | Array<QLProps>,
   Component: React.FunctionComponent<Attributes & Context>
 ) =>
   Array.isArray(ctx) ? (
     ctx.map(ctx => (
-      <Component {...ctx} transact={query => transact(ctx, query)} />
+      <Component
+        {...ctx}
+        transact={query => transact(ctx, query)}
+        render={render}
+      />
     ))
   ) : (
-    <Component {...ctx} transact={query => transact(ctx, query)} />
+    <Component
+      {...ctx}
+      transact={query => transact(ctx, query)}
+      render={render}
+    />
   );
 
 export type QLComponent = React.FunctionComponent<QLProps>;
@@ -225,7 +233,11 @@ function refresh({ skipRemote }) {
       perfRQ(unfoldQuery(getQuery(RootComponent)))
     );
     ReactDOM.render(
-      <RootComponent {...props} transact={query => transact(props, query)} />,
+      <RootComponent
+        {...props}
+        transact={query => transact(props, query)}
+        render={render}
+      />,
       element
     );
   }
