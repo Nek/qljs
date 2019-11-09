@@ -49,20 +49,20 @@ export const parsers = {
 
 const render = (
   ctx: QLProps | Array<QLProps>,
-  Component: React.FunctionComponent<Attributes & Context>
-) =>
+  Component: QLComponent
+): JSX.Element | JSX.Element[] =>
   Array.isArray(ctx) ? (
     ctx.map(ctx => (
       <Component
         {...ctx}
-        transact={query => transact(ctx, query)}
+        transact={(query: FullQuery): void => transact(ctx, query)}
         render={render}
       />
     ))
   ) : (
     <Component
       {...ctx}
-      transact={query => transact(ctx, query)}
+      transact={(query: FullQuery): void => transact(ctx, query)}
       render={render}
     />
   );
@@ -89,12 +89,20 @@ type Attributes = {
   key: string;
 };
 
-export type QLProps = Attributes & Context;
-
 type Context = {
   __env: Env;
   __query: FullQuery;
 };
+
+type Utils = {
+  render: (
+    ctx: QLProps | Array<QLProps>,
+    Component: QLComponent
+  ) => JSX.Element | JSX.Element[];
+  transact: (query: FullQuery) => void;
+};
+
+export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<any, FoldedQuery> = new Map();
 
@@ -146,7 +154,7 @@ export function parseQueryIntoProps(
   __query: FullQuery,
   __env: Env = {},
   _state: object = state
-): QLProps {
+): Attributes & Context {
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
@@ -235,7 +243,7 @@ function refresh({ skipRemote }) {
     ReactDOM.render(
       <RootComponent
         {...props}
-        transact={query => transact(props, query)}
+        transact={(query: FullQuery): void => transact(props, query)}
         render={render}
       />,
       element
@@ -267,7 +275,7 @@ export function parseChildren(
   term: FullTerm,
   __env: Env,
   _state = state
-): QLProps {
+): Attributes & Context {
   const [, , ...query] = term;
   const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
   return parseQueryIntoProps(query, newEnv, _state);
