@@ -81,9 +81,11 @@ type Query = Term[];
 type Tag = string;
 type Params = object;
 type SubTerm = DSLTerm | DSLTerm[];
-type SubQuery = SubTerm[];
+type SubQuery = (SubTerm | QLComponent)[];
 
-type DSLTerm = Tag | [Tag, Params?, ...SubQuery];
+type FullDSLTerm = [Tag, Params?, ...SubQuery];
+
+type DSLTerm = Tag | FullDSLTerm;
 
 type DSLQuery = DSLTerm[];
 
@@ -107,7 +109,7 @@ type Utils = {
 
 export type QLProps = Attributes & Context & Utils;
 
-const registry: Map<any, Query> = new Map();
+const registry: Map<QLComponent, Query> = new Map();
 
 function flattenRest(rest) {
   return rest.reduce((res: DSLTerm[], term: any): DSLTerm[] => {
@@ -117,8 +119,13 @@ function flattenRest(rest) {
 
 export const component = (dsl: DSLQuery, key: QLComponent) => {
   const query: any = dsl
+    .map(term => {
+      return Array.isArray(term)
+        ? term.map(i => getQuery(i as QLComponent) || i)
+        : term;
+    })
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
-    .map((term): DSLTerm => (typeof term === "string" ? [term, {}] : term))
+    .map((term): any => (typeof term === "string" ? [term, {}] : term))
     // Add parameters to single item Term [['todoId']] -> [['todoId', {}]]
     .map((term): DSLTerm => (term.length === 1 ? [term[0], {}] : term))
     // Insert parameters into a longer query [['todos', [...]...]] -> [['todos', {}, [...]...]]
@@ -131,6 +138,7 @@ export const component = (dsl: DSLQuery, key: QLComponent) => {
         return term;
       }
     );
+
   registry.set(key, query);
   return key;
 };
