@@ -19,20 +19,20 @@ const metaParser = (name, dict) => (id, parser) => {
   }
 };
 
-export type ReadParser = (term: FullTerm, env: Env, state: any) => any;
+export type ReadParser = (term: Term, env: Env, state: any) => any;
 const readDict: { [tag: string]: ReadParser } = {};
 const read = metaParser("Read", readDict);
 
-export type MutateParser = (term: FullTerm, env: Env, state: any) => any;
+export type MutateParser = (term: Term, env: Env, state: any) => any;
 const mutateDict: { [tag: string]: MutateParser } = {};
 const mutate = metaParser("Mutate", mutateDict);
 
-export type RemoteParser = (term: FullTerm, state: any) => FullTerm;
+export type RemoteParser = (term: Term, state: any) => Term;
 const remoteDict: { [tag: string]: RemoteParser } = {};
 const remote = metaParser("Remote", remoteDict);
 
 export type SyncParser = (
-  term: FullTerm,
+  term: Term,
   result: object,
   env: Env,
   state: any
@@ -55,14 +55,14 @@ const render = (
     ctx.map(ctx => (
       <Component
         {...ctx}
-        transact={(query: FullQuery): void => transact(ctx, query)}
+        transact={(query: Query): void => transact(ctx, query)}
         render={render}
       />
     ))
   ) : (
     <Component
       {...ctx}
-      transact={(query: FullQuery): void => transact(ctx, query)}
+      transact={(query: Query): void => transact(ctx, query)}
       render={render}
     />
   );
@@ -72,17 +72,11 @@ export type QLComponent = React.FunctionComponent<QLProps>;
 let RootComponent: QLComponent;
 let element: HTMLElement;
 let state: object;
-let remoteHandler: (tag: string, params: object) => Promise<[FullTerm, any][]>;
-
-type FullQuery = FullTerm[];
-
-type FullTerm = [string, object, ...FullTerm[]];
-
-type FoldedQuery = Term[];
-
-type TermItem = Term;
+let remoteHandler: (tag: string, params: object) => Promise<[Term, any][]>;
 
 type Term = [string, object, ...Term[]];
+
+type Query = Term[];
 
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
@@ -91,7 +85,7 @@ type Attributes = {
 
 type Context = {
   __env: Env;
-  __query: FullQuery;
+  __query: Query;
 };
 
 type Utils = {
@@ -99,19 +93,19 @@ type Utils = {
     ctx: QLProps | Array<QLProps>,
     Component: QLComponent
   ) => JSX.Element | JSX.Element[];
-  transact: (query: FullQuery) => void;
+  transact: (query: Query) => void;
 };
 
 export type QLProps = Attributes & Context & Utils;
 
-const registry: Map<any, FullQuery> = new Map();
+const registry: Map<any, Query> = new Map();
 
-export const component = (query: FoldedQuery, key: QLComponent) => {
+export const component = (query: Query, key: QLComponent) => {
   registry.set(key, unfoldQuery(query));
   return key;
 };
 
-export function getQuery(key: QLComponent): FullQuery {
+export function getQuery(key: QLComponent): Query {
   return registry.get(key);
 }
 
@@ -124,7 +118,7 @@ type Env = {
   __queryKey?: string;
 };
 
-const parseQueryTerm = (term: FullTerm, __env: Env): object => {
+const parseQueryTerm = (term: Term, __env: Env): object => {
   const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
     return mutateFn(term, __env, state);
@@ -138,7 +132,7 @@ const parseQueryTerm = (term: FullTerm, __env: Env): object => {
   }
 };
 
-const parseQuery = (query: FullQuery, __env: Env): Array<object> => {
+const parseQuery = (query: Query, __env: Env): Array<object> => {
   if (__env === undefined) {
     return parseQuery(query, {});
   }
@@ -151,7 +145,7 @@ function makeProps(res: object, [k, v]: [string, object]): object {
 }
 
 export function parseQueryIntoProps(
-  __query: FullQuery,
+  __query: Query,
   __env: Env = {},
   _state: object = state
 ): Attributes & Context {
@@ -168,11 +162,11 @@ export function parseQueryIntoProps(
   };
 }
 
-function parseQueryRemote(query: FullQuery): FullTerm[] {
+function parseQueryRemote(query: Query): Term[] {
   const result = query.reduce((acc, term) => {
     const remote = remoteDict[term[0]];
     if (remote) {
-      const v: FullTerm = remote(term, state);
+      const v: Term = remote(term, state);
       return v ? [...acc, v] : acc;
     } else {
       return acc;
@@ -181,12 +175,12 @@ function parseQueryRemote(query: FullQuery): FullTerm[] {
   return result;
 }
 
-export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
+export function parseChildrenRemote([dispatchKey, params, ...chi]: Term) {
   const chiRemote = parseQueryRemote(chi);
   return [dispatchKey, params, ...chiRemote];
 }
 
-function parseQueryTermSync(term: FullTerm, result: object, __env: Env): void {
+function parseQueryTermSync(term: Term, result: object, __env: Env): void {
   const syncFun = syncDict[term[0]];
   if (syncFun) {
     syncFun(term, result, __env, state);
@@ -199,7 +193,7 @@ export function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
   return a1.map((x, i) => [x, a2[i]]);
 }
 
-function compressTerm(term): FullTerm {
+function compressTerm(term): Term {
   const compressInner = (term, res) => {
     if (term === undefined) {
       return res;
@@ -216,12 +210,12 @@ function compressTerm(term): FullTerm {
 /*
 Call remote handler for a query and zip result to
 */
-function performRemoteQuery(query: FullQuery): void {
+function performRemoteQuery(query: Query): void {
   if (remoteHandler && Array.isArray(query) && query.length > 0) {
     const [term] = query;
     const [tag, params] = compressTerm(term);
     remoteHandler(tag, params).then(results => {
-      zip(query, results).forEach(([k, v]: [FullTerm, any]) => {
+      zip(query, results).forEach(([k, v]: [Term, any]) => {
         parseQueryTermSync(compressTerm(k), v, {});
       });
       refresh({ skipRemote: true });
@@ -233,7 +227,7 @@ function refresh({ skipRemote }) {
   if (RootComponent !== undefined) {
     const perfRQ = skipRemote
       ? v => v
-      : (query: FullQuery) => {
+      : (query: Query) => {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
@@ -241,7 +235,7 @@ function refresh({ skipRemote }) {
     ReactDOM.render(
       <RootComponent
         {...props}
-        transact={(query: FullQuery): void => transact(props, query)}
+        transact={(query: Query): void => transact(props, query)}
         render={render}
       />,
       element
@@ -255,7 +249,7 @@ export function mapDelta(map1: {}, map2: {}): {} {
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {});
 }
 
-export function loopRootQuery(queryTerm: FullTerm, __env?: Env): FullTerm {
+export function loopRootQuery(queryTerm: Term, __env?: Env): Term {
   if (__env) {
     const __parentEnv = __env.__parentEnv;
     const newEnv: Env = {
@@ -270,7 +264,7 @@ export function loopRootQuery(queryTerm: FullTerm, __env?: Env): FullTerm {
 }
 
 export function parseChildren(
-  term: FullTerm,
+  term: Term,
   __env: Env,
   _state = state
 ): Attributes & Context {
@@ -279,14 +273,14 @@ export function parseChildren(
   return parseQueryIntoProps(query, newEnv, _state);
 }
 
-export function makeRootQuery(__env: Env, query: FullQuery): FullTerm[] {
+export function makeRootQuery(__env: Env, query: Query): Term[] {
   return query.map(queryTerm => {
     return loopRootQuery(queryTerm, __env.__parentEnv);
   });
 }
 export function transact(
   { __env, __query: componentQuery },
-  query: FullQuery,
+  query: Query,
   _state = state
 ): void {
   const rootQuery = [...query, ...componentQuery].map(queryTerm => {
@@ -297,19 +291,17 @@ export function transact(
   refresh({ skipRemote: false });
 }
 
-export function componentToQuery(something: any): FullQuery {
-  return something;
-}
-
-export function unfoldQueryTerm(term: Term): FullTerm {
-  const [tag, params, ...terms] = term;
-  const fullTerms: Array<FullTerm> = terms
-    .map(componentToQuery)
-    .reduce((res: Array<FullTerm>, arr) => [...res, ...arr], []);
+export function unfoldQueryTerm(term: Term): Term {
+  const [tag, params, ...terms]: [string, object, ...Term[]] = term;
+  const fullTerms: Term[] = terms.reduce(
+    (terms: Term[], term: any) => [...terms, ...term],
+    []
+  );
+  console.log(fullTerms)
   return [tag, params, ...fullTerms];
 }
 
-export function unfoldQuery(query: FoldedQuery): FullQuery {
+export function unfoldQuery(query: Query): Query {
   return query.map(unfoldQueryTerm);
 }
 
