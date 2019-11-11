@@ -302,20 +302,11 @@ export function componentToQuery(something: any): FullQuery {
 }
 
 export function unfoldQueryTerm(term: Term): FullTerm {
-  let terms: (string | object | TermItem)[];
-  const [tag, maybeParams] = term;
-  let res: FullTerm;
-  if (maybeParams && Object.getPrototypeOf(maybeParams) === Object.prototype) {
-    [, , ...terms] = term;
-    res = [tag, maybeParams];
-  } else {
-    [, ...terms] = term;
-    res = [tag, {}];
-  }
+  const [tag, params, ...terms] = term;
   const fullTerms: Array<FullTerm> = terms
     .map(componentToQuery)
     .reduce((res: Array<FullTerm>, arr) => [...res, ...arr], []);
-  return [res[0], res[1], ...fullTerms];
+  return [tag, params, ...fullTerms];
 }
 
 export function unfoldQuery(query: FoldedQuery): FullQuery {
