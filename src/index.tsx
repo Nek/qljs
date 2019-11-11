@@ -78,7 +78,12 @@ type Term = [string, object, ...Term[]];
 
 type Query = Term[];
 
-type DSLTerm = string | [string, object?, ...DSLTerm[]];
+type Tag = string;
+type Params = object;
+type SubTerm = DSLTerm | DSLTerm[];
+type SubQuery = SubTerm[];
+
+type DSLTerm = Tag | [Tag, Params?, ...SubQuery];
 
 type DSLQuery = DSLTerm[];
 
@@ -104,6 +109,12 @@ export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<any, Query> = new Map();
 
+function flattenRest(rest) {
+  return rest.reduce((res: DSLTerm[], term: any): DSLTerm[] => {
+    return Array.isArray(term[0]) ? [...res, ...term] : [...res, term];
+  }, []);
+}
+
 export const component = (dsl: DSLQuery, key: QLComponent) => {
   const query: any = dsl
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
@@ -115,7 +126,7 @@ export const component = (dsl: DSLQuery, key: QLComponent) => {
       (term): DSLTerm => {
         if (term.length > 1 && Array.isArray(term[1])) {
           const [, ...rest]: any = term;
-          return [term[0], {}, ...rest];
+          return [term[0], {}, ...flattenRest(rest)];
         }
         return term;
       }
