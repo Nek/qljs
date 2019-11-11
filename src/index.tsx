@@ -183,7 +183,7 @@ function parseQueryRemote(query: FullQuery): FullTerm[] {
 
 export function parseChildrenRemote([dispatchKey, params, ...chi]: FullTerm) {
   const chiRemote = parseQueryRemote(chi);
-  return [...[dispatchKey, params], ...chiRemote];
+  return [dispatchKey, params, ...chiRemote];
 }
 
 function parseQueryTermSync(term: FullTerm, result: object, __env: Env): void {
