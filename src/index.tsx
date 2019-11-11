@@ -101,7 +101,7 @@ export type QLProps = Attributes & Context & Utils;
 const registry: Map<any, Query> = new Map();
 
 export const component = (query: Query, key: QLComponent) => {
-  registry.set(key, unfoldQuery(query));
+  registry.set(key, query);
   return key;
 };
 
@@ -289,20 +289,6 @@ export function transact(
   parseQuery(rootQuery, __env);
   performRemoteQuery(parseQueryRemote(rootQuery));
   refresh({ skipRemote: false });
-}
-
-export function unfoldQueryTerm(term: Term): Term {
-  const [tag, params, ...terms]: [string, object, ...Term[]] = term;
-  const fullTerms: Term[] = terms.reduce(
-    (terms: Term[], term: any) => [...terms, ...term],
-    []
-  );
-  console.log(fullTerms)
-  return [tag, params, ...fullTerms];
-}
-
-export function unfoldQuery(query: Query): Query {
-  return query.map(unfoldQueryTerm);
 }
 
 export function init({
