@@ -78,7 +78,7 @@ type Term = [string, object, ...Term[]];
 
 type Query = Term[];
 
-type DSLTerm = [string, object, ...Term[]];
+type DSLTerm = string | [string, object?, ...DSLTerm[]];
 
 type DSLQuery = DSLTerm[];
 
@@ -105,9 +105,21 @@ export type QLProps = Attributes & Context & Utils;
 const registry: Map<any, Query> = new Map();
 
 export const component = (dsl: DSLQuery, key: QLComponent) => {
-  const query: Query = dsl
-    .map((term): Term => (typeof term === "string" ? [term, {}] : term))
-    .map((term): Term => (term.length === 1 ? [term[0], {}] : term));
+  const query: any = dsl
+    // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
+    .map((term): DSLTerm => (typeof term === "string" ? [term, {}] : term))
+    // Add parameters to single item Term [['todoId']] -> [['todoId', {}]]
+    .map((term): DSLTerm => (term.length === 1 ? [term[0], {}] : term))
+    // Insert parameters into a longer query [['todos', [...]...]] -> [['todos', {}, [...]...]]
+    .map(
+      (term): DSLTerm => {
+        if (term.length > 1 && Array.isArray(term[1])) {
+          const [, ...rest]: any = term;
+          return [term[0], {}, ...rest];
+        }
+        return term;
+      }
+    );
   registry.set(key, query);
   return key;
 };
