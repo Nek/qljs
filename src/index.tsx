@@ -80,9 +80,9 @@ type FullTerm = [string, object, ...FullTerm[]];
 
 type FoldedQuery = Term[];
 
-type TermItem = Term | QLComponent;
+type TermItem = Term;
 
-type Term = [string, (object | TermItem), ...TermItem[]];
+type Term = [string, object, ...Term[]];
 
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
@@ -104,14 +104,14 @@ type Utils = {
 
 export type QLProps = Attributes & Context & Utils;
 
-const registry: Map<any, FoldedQuery> = new Map();
+const registry: Map<any, FullQuery> = new Map();
 
 export const component = (query: FoldedQuery, key: QLComponent) => {
-  registry.set(key, query);
+  registry.set(key, unfoldQuery(query));
   return key;
 };
 
-export function getQuery(key: QLComponent): FoldedQuery {
+export function getQuery(key: QLComponent): FullQuery {
   return registry.get(key);
 }
 
@@ -237,9 +237,7 @@ function refresh({ skipRemote }) {
           performRemoteQuery(parseQueryRemote(query));
           return query;
         };
-    const props = parseQueryIntoProps(
-      perfRQ(unfoldQuery(getQuery(RootComponent)))
-    );
+    const props = parseQueryIntoProps(perfRQ(getQuery(RootComponent)));
     ReactDOM.render(
       <RootComponent
         {...props}
@@ -300,8 +298,7 @@ export function transact(
 }
 
 export function componentToQuery(something: any): FullQuery {
-  const query: FullQuery = unfoldQuery(getQuery(something));
-  return query || something;
+  return something;
 }
 
 export function unfoldQueryTerm(term: Term): FullTerm {
