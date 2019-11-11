@@ -78,6 +78,10 @@ type Term = [string, object, ...Term[]];
 
 type Query = Term[];
 
+type DSLTerm = [string, object, ...Term[]];
+
+type DSLQuery = DSLTerm[];
+
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
   key: string;
@@ -100,7 +104,10 @@ export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<any, Query> = new Map();
 
-export const component = (query: Query, key: QLComponent) => {
+export const component = (dsl: DSLQuery, key: QLComponent) => {
+  const query: Query = dsl
+    .map((term): Term => (typeof term === "string" ? [term, {}] : term))
+    .map((term): Term => (term.length === 1 ? [term[0], {}] : term));
   registry.set(key, query);
   return key;
 };
