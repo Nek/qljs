@@ -74,16 +74,21 @@ let element: HTMLElement;
 let state: object;
 let remoteHandler: (tag: string, params: object) => Promise<[Term, any][]>;
 
-type Term = [string, object, ...Term[]];
+type Term = [Tag, Params, ...Term[]];
 
 type Query = Term[];
 
 type Tag = string;
 type Params = object;
-type SubTerm = DSLTerm | DSLTerm[];
-type SubQuery = (SubTerm | QLComponent)[];
 
-type FullDSLTerm = [Tag, Params?, ...SubQuery];
+type TagTerm = [Tag];
+type TagParamsTerm = [Tag, Params];
+type QueryTerm = [Tag, ...(Query | QLComponent)[]];
+type QueryParamsTerm = [Tag, Params, ...(Query | QLComponent)[]];
+
+type MaybeTerm = Tag | TagTerm | TagParamsTerm | QueryTerm | QueryParamsTerm;
+
+type FullDSLTerm = [Tag, Params?, ...(Query | QLComponent)[]];
 
 type DSLTerm = Tag | FullDSLTerm;
 
@@ -120,17 +125,9 @@ function flattenRest(rest) {
     return isDSLQuery(term) ? [...res, ...term] : [...res, term];
   }, []);
 }
-function isQLComponent(comp: unknown): comp is QLComponent {
-  return comp instanceof Function;
-}
 
 export const component = (dsl: DSLQuery, key: QLComponent): QLComponent => {
   const query: Query = dsl
-    .map((term: DSLTerm) => {
-      return Array.isArray(term)
-        ? term.map(i => (isQLComponent(i) ? getQuery(i) : i))
-        : term;
-    })
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
     .map(
       (term: string | DSLTerm): DSLTerm =>
@@ -143,7 +140,7 @@ export const component = (dsl: DSLQuery, key: QLComponent): QLComponent => {
       (term): Term => {
         if (term.length > 1 && Array.isArray(term[1])) {
           const [, ...rest] = term;
-          return [term[0], {}, ...flattenRest(rest)] as Term;
+          return [term[0], {}, ...flattenRest(rest)];
         }
         return term as Term;
       }
