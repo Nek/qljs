@@ -117,25 +117,28 @@ function flattenRest(rest) {
   }, []);
 }
 
-export const component = (dsl: DSLQuery, key: QLComponent) => {
-  const query: any = dsl
+export const component = (dsl: DSLQuery, key: QLComponent): QLComponent => {
+  const query: Query = dsl
     .map(term => {
       return Array.isArray(term)
         ? term.map(i => getQuery(i as QLComponent) || i)
         : term;
     })
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
-    .map((term): any => (typeof term === "string" ? [term, {}] : term))
+    .map(
+      (term: string | DSLTerm): DSLTerm =>
+        typeof term === "string" ? [term, {}] : term
+    )
     // Add parameters to single item Term [['todoId']] -> [['todoId', {}]]
     .map((term): DSLTerm => (term.length === 1 ? [term[0], {}] : term))
     // Insert parameters into a longer query [['todos', [...]...]] -> [['todos', {}, [...]...]]
     .map(
-      (term): DSLTerm => {
+      (term): Term => {
         if (term.length > 1 && Array.isArray(term[1])) {
-          const [, ...rest]: any = term;
-          return [term[0], {}, ...flattenRest(rest)];
+          const [, ...rest] = term;
+          return [term[0], {}, ...flattenRest(rest)] as Term;
         }
-        return term;
+        return term as Term;
       }
     );
 
