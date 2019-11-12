@@ -111,17 +111,24 @@ export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<QLComponent, Query> = new Map();
 
+function isDSLQuery(term: unknown): term is DSLQuery {
+  return Array.isArray(term[0]);
+}
+
 function flattenRest(rest) {
-  return rest.reduce((res: DSLTerm[], term: any): DSLTerm[] => {
-    return Array.isArray(term[0]) ? [...res, ...term] : [...res, term];
+  return rest.reduce((res: DSLQuery, term: DSLTerm | DSLQuery): DSLTerm[] => {
+    return isDSLQuery(term) ? [...res, ...term] : [...res, term];
   }, []);
+}
+function isQLComponent(comp: unknown): comp is QLComponent {
+  return comp instanceof Function;
 }
 
 export const component = (dsl: DSLQuery, key: QLComponent): QLComponent => {
   const query: Query = dsl
-    .map(term => {
+    .map((term: DSLTerm) => {
       return Array.isArray(term)
-        ? term.map(i => getQuery(i as QLComponent) || i)
+        ? term.map(i => (isQLComponent(i) ? getQuery(i) : i))
         : term;
     })
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
