@@ -1,5 +1,5 @@
-import React from "react";
-import ReactDOM from "react-dom";
+import * as React from "react";
+import * as ReactDOM from "react-dom";
 
 const parserNoMatch = (id: string, key: string | number | symbol): void => {
   console.warn(`${String(id)} parser for "${String(key)}" is missing.`);
@@ -145,7 +145,7 @@ function isParams(term: unknown | Params): term is Params {
 function isTerm(curr: Term | Query | QLComponent): curr is Term {
   return typeof curr[0] === "string";
 }
-//React.FunctionComponent<QLProps>
+
 function isQuery(curr: Query | QLComponent): curr is Query {
   return Array.isArray(curr[0]);
 }
