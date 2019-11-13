@@ -342,13 +342,15 @@ export function mapDelta(map1: {}, map2: {}): {} {
 
 export function loopRootQuery(queryTerm: Term, __env?: Env): Term {
   if (__env) {
-    const __parentEnv = __env.__parentEnv;
     const newEnv: Env = {
-      ...(__parentEnv ? mapDelta(__parentEnv, __env) : __env)
+      ...(__env.__parentEnv ? mapDelta(__env.__parentEnv, __env) : __env),
+      __parentEnv: undefined,
+      __queryKey: undefined
     };
-    delete newEnv.__parentEnv;
-    delete newEnv.__queryKey;
-    return loopRootQuery([__env.__queryKey, newEnv, queryTerm], __parentEnv);
+    return loopRootQuery(
+      [__env.__queryKey, newEnv, queryTerm],
+      __env.__parentEnv
+    );
   } else {
     return queryTerm;
   }
