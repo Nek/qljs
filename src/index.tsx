@@ -74,26 +74,6 @@ let element: HTMLElement;
 let state: object;
 let remoteHandler: (tag: string, params: object) => Promise<[Term, any][]>;
 
-type Term = [Tag, Params, ...Term[]];
-
-type Query = Term[];
-
-type Tag = string;
-type Params = object;
-
-type TagTerm = [Tag];
-type TagParamsTerm = [Tag, Params];
-type QueryTerm = [Tag, ...(Query | QLComponent)[]];
-type QueryParamsTerm = [Tag, Params, ...(Query | QLComponent)[]];
-
-type MaybeTerm = Tag | TagTerm | TagParamsTerm | QueryTerm | QueryParamsTerm;
-
-type FullDSLTerm = [Tag, Params?, ...(Query | QLComponent)[]];
-
-type DSLTerm = Tag | FullDSLTerm;
-
-type DSLQuery = DSLTerm[];
-
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
   key: string;
@@ -116,35 +96,101 @@ export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<QLComponent, Query> = new Map();
 
-function isDSLQuery(term: unknown): term is DSLQuery {
-  return Array.isArray(term[0]);
+type Tag = string;
+type Params = object;
+
+type Term = [Tag, Params, ...Term[]];
+type Query = Term[];
+
+type ShortTerm = Tag | [Tag, Params?, ...(Query | Term | QLComponent)[]];
+type ShortQuery = ShortTerm[];
+
+type StrictlyParametrizedTerm = [
+  Tag,
+  Params,
+  ...(Term | QLComponent | Query)[]
+];
+
+function isStrictlyParametrizedTerm(
+  term: [Tag, ...(Term | QLComponent | Query)[]] | StrictlyParametrizedTerm
+): term is StrictlyParametrizedTerm {
+  return term.length > 1 && isParams(term[1]);
 }
 
-function flattenRest(rest) {
-  return rest.reduce((res: DSLQuery, term: DSLTerm | DSLQuery): DSLTerm[] => {
-    return isDSLQuery(term) ? [...res, ...term] : [...res, term];
-  }, []);
+/*
+ShortQuery
+ShortTerm[]
+
+Term
+[Tag, Params, ...Term[]]
+
+Query
+Term[]
+
+ShortTerm
+'todoId' -> Tag
+['todoId'] -> [Tag]
+['todoId', Area, AreaOption] -> [Tag, ...QLComponent[]]
+['todoId', {}] -> [Tag, Params]
+['todoId', {}, Area, AreaOption] -> [Tag, Params, ...QLComponent[]]
+['todoId', {}, Area, [['todoId', {}],['areaId',{}]], Area] -> [Tag, Params, ...(Query | Term | QLComponent)[]]
+['todoId', Area, AreaOption] -> [Tag, ...QLComponent[]]
+['todoId', Area, [['todoId', {}],['areaId',{}]], Area] -> [Tag, Params, ...(Query | Term | QLComponent)[]]
+ */
+
+function isParams(term: unknown | Params): term is Params {
+  return Object.prototype.toString.call(term) === "[object Object]";
 }
 
-export const component = (dsl: DSLQuery, key: QLComponent): QLComponent => {
+function isTerm(curr: Term | Query | QLComponent): curr is Term {
+  return typeof curr[0] === "string";
+}
+//React.FunctionComponent<QLProps>
+function isQuery(curr: Query | QLComponent): curr is Query {
+  return Array.isArray(curr[0]);
+}
+
+function normalize(rest: (Term | Query | QLComponent)[]): Term[] {
+  return rest.reduce<Term[]>(
+    (res: Term[], curr: Term | Query | QLComponent): Term[] => {
+      if (isTerm(curr)) {
+        return [...res, curr];
+      } else if (isQuery(curr)) {
+        return [...res, ...curr];
+      } else {
+        const query = getQuery(curr);
+        return [...res, ...query];
+      }
+    },
+    []
+  );
+}
+
+function tagToTerm(tag: Tag | unknown[]) {
+  return typeof tag === "string" ? [tag] : tag;
+}
+
+function addParamsAndNormalize(
+  term: [Tag, ...(Term | QLComponent | Query)[]] | StrictlyParametrizedTerm
+): Term {
+  if (isStrictlyParametrizedTerm(term)) {
+    const [, , ...rest]: [
+      Tag,
+      Params,
+      ...(Term | QLComponent | Query)[]
+    ] = term;
+    return [term[0], term[1], ...normalize(rest)];
+  } else {
+    const [, ...rest]: [Tag, ...(Term | QLComponent | Query)[]] = term;
+    return [term[0], {}, ...normalize(rest)];
+  }
+}
+
+export const component = (dsl: ShortQuery, key: QLComponent): QLComponent => {
   const query: Query = dsl
     // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
-    .map(
-      (term: string | DSLTerm): DSLTerm =>
-        typeof term === "string" ? [term, {}] : term
-    )
-    // Add parameters to single item Term [['todoId']] -> [['todoId', {}]]
-    .map((term): DSLTerm => (term.length === 1 ? [term[0], {}] : term))
-    // Insert parameters into a longer query [['todos', [...]...]] -> [['todos', {}, [...]...]]
-    .map(
-      (term): Term => {
-        if (term.length > 1 && Array.isArray(term[1])) {
-          const [, ...rest] = term;
-          return [term[0], {}, ...flattenRest(rest)];
-        }
-        return term as Term;
-      }
-    );
+    .map(tagToTerm)
+    .map(addParamsAndNormalize);
 
   registry.set(key, query);
   return key;
