@@ -316,13 +316,9 @@ function performRemoteQuery(query: Query): void {
 
 function refresh({ skipRemote }) {
   if (RootComponent !== undefined) {
-    const perfRQ = skipRemote
-      ? v => v
-      : (query: Query) => {
-          performRemoteQuery(parseQueryRemote(query));
-          return query;
-        };
-    const props = parseQueryIntoProps(perfRQ(getQuery(RootComponent)));
+    const rootQuery = getQuery(RootComponent);
+    !skipRemote && performRemoteQuery(parseQueryRemote(rootQuery));
+    const props = parseQueryIntoProps(rootQuery);
     ReactDOM.render(
       <RootComponent
         {...props}
