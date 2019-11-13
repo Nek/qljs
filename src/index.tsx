@@ -19,11 +19,11 @@ const metaParser = (name, dict) => (id, parser) => {
   }
 };
 
-export type ReadParser = (term: Term, env: Env, state: any) => any;
+export type ReadParser = (term: Term, env: Env, state: any) => Props;
 const readDict: { [tag: string]: ReadParser } = {};
 const read = metaParser("Read", readDict);
 
-export type MutateParser = (term: Term, env: Env, state: any) => any;
+export type MutateParser = (term: Term, env: Env, state: any) => Props;
 const mutateDict: { [tag: string]: MutateParser } = {};
 const mutate = metaParser("Mutate", mutateDict);
 
@@ -46,6 +46,14 @@ export const parsers = {
   remote,
   sync
 };
+
+type Props =
+  | string
+  | number
+  | boolean
+  | null
+  | { [property: string]: Props }
+  | Props[];
 
 const render = (
   ctx: QLProps | Array<QLProps>,
@@ -209,7 +217,7 @@ type Env = {
   __queryKey?: string;
 };
 
-const parseQueryTerm = (term: Term, __env: Env): object => {
+const parseQueryTerm = (term: Term, __env: Env): Props => {
   const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
     return mutateFn(term, __env, state);
@@ -219,11 +227,11 @@ const parseQueryTerm = (term: Term, __env: Env): object => {
       parserNoMatch("Read", term[0]);
       return null;
     }
-    return readDict[term[0]](term, __env, state);
+    return parser(term, __env, state);
   }
 };
 
-const parseQuery = (query: Query, __env: Env): Array<object> => {
+const parseQuery = (query: Query, __env: Env): Props[] => {
   if (__env === undefined) {
     return parseQuery(query, {});
   }
@@ -231,7 +239,10 @@ const parseQuery = (query: Query, __env: Env): Array<object> => {
   return query.map(queryTerm => parseQueryTerm(queryTerm, __env));
 };
 
-function makeProps(res: object, [k, v]: [string, object]): object {
+function makeProps(
+  res: { [property: string]: Props },
+  [k, v]: [string, Props]
+): { [property: string]: Props } {
   return { ...res, [k]: v };
 }
 
@@ -243,7 +254,9 @@ export function parseQueryIntoProps(
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
-  const props = zip(queryNames, queryResult).reduce(makeProps, {});
+  const props = zip(queryNames, queryResult).reduce<{
+    [property: string]: Props;
+  }>(makeProps, {});
   const key = props[queryNames[0]];
   return {
     __env,
