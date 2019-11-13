@@ -253,7 +253,7 @@ export function parseQueryIntoProps(
   };
 }
 
-function parseQueryRemote(query: Query): Term[] {
+function parseQueryRemote(query: Query): Query {
   const result = query.reduce((acc, term) => {
     const remote = remoteDict[term[0]];
     if (remote) {
@@ -284,8 +284,8 @@ export function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
   return a1.map((x, i) => [x, a2[i]]);
 }
 
-function compressTerm(term): Term {
-  const compressInner = (term, res) => {
+function compressTerm(term: Term): Term {
+  const compressInner = (term: Term, res: { tags: Tag[]; params: any[] }) => {
     if (term === undefined) {
       return res;
     } else {
@@ -302,7 +302,7 @@ function compressTerm(term): Term {
 Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: Query): void {
-  if (remoteHandler && Array.isArray(query) && query.length > 0) {
+  if (remoteHandler) {
     const [term] = query;
     const [tag, params] = compressTerm(term);
     remoteHandler(tag, params).then(results => {
