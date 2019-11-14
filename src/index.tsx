@@ -19,11 +19,15 @@ const metaParser = (name, dict) => (id, parser) => {
   }
 };
 
-export type ReadParser = (term: Term, env: Env, state: unknown) => Json;
+export type ReadParser = (term: Term, env: Params, state: unknown) => Json;
 const readDict: { [tag: string]: ReadParser } = {};
 const read = metaParser("Read", readDict);
 
-export type MutateParser = (term: Term, env: Env, state: unknown) => Json;
+export type MutateParser = (
+  term: [Tag, Params?],
+  env: Params,
+  state: unknown
+) => Json;
 const mutateDict: { [tag: string]: MutateParser } = {};
 const mutate = metaParser("Mutate", mutateDict);
 
@@ -33,8 +37,8 @@ const remote = metaParser("Remote", remoteDict);
 
 export type SyncParser = (
   term: Term,
-  result: Json,
-  env: Env,
+  result: Params,
+  env: Params,
   state: unknown
 ) => void;
 const syncDict: { [tag: string]: SyncParser } = {};
@@ -47,7 +51,7 @@ export const parsers = {
   sync
 };
 
-type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -63,14 +67,14 @@ const render = (
     ctx.map(ctx => (
       <Component
         {...ctx}
-        transact={(query: Query): void => transact(ctx, query)}
+        transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
         render={render}
       />
     ))
   ) : (
     <Component
       {...ctx}
-      transact={(query: Query): void => transact(ctx, query)}
+      transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
       render={render}
     />
   );
@@ -86,8 +90,18 @@ let remoteHandler: (
   params?: Params
 ) => Promise<Params[]> | boolean;
 
+// @ts-ignore
+export type QLProps = Attributes & Context & Utils;
+
 type Attributes = {
-  [propName: string]: string | number | [] | {} | boolean | Attributes;
+  [propName: string]:
+    | string
+    | number
+    | []
+    | {}
+    | boolean
+    | Attributes
+    | QLProps;
   key: string;
 };
 
@@ -101,31 +115,34 @@ type Utils = {
     ctx: QLProps | Array<QLProps>,
     Component: QLComponent
   ) => JSX.Element | JSX.Element[];
-  transact: (query: Query) => void;
+  transact: (query: [Tag, Params?][]) => void;
 };
-
-export type QLProps = Attributes & Context & Utils;
 
 const registry: Map<QLComponent, Query> = new Map();
 
-type Tag = string;
-type Params = { [property: string]: Json };
+export type Tag = string;
+export type Params = { [property: string]: Json };
 function isParams(term: unknown | Params): term is Params {
   return Object.prototype.toString.call(term) === "[object Object]";
 }
 
-type Term = [Tag, Params, ...Term[]];
+export type Term = [Tag, Params, ...Term[]];
 function isTerm(curr: Term | Query | QLComponent): curr is Term {
   return typeof curr[0] === "string";
 }
 
-type Query = Term[];
+export type Query = Term[];
 function isQuery(curr: Query | QLComponent): curr is Query {
   return Array.isArray(curr[0]);
 }
 
-type ShortTerm = Tag | [Tag, Params?, ...(Query | Term | QLComponent)[]];
-type ShortQuery = ShortTerm[];
+export type ShortTerm =
+  | Tag
+  | [Tag]
+  | [Tag, Params]
+  | [Tag, ...(Query | Term | QLComponent)[]]
+  | [Tag, Params, ...(Query | Term | QLComponent)[]];
+export type ShortQuery = ShortTerm[];
 
 type StrictlyParametrizedTerm = [
   Tag,
@@ -192,7 +209,7 @@ export function clearRegistry(): void {
   registry.clear();
 }
 
-type Env = {
+export type Env = {
   __parentEnv?: Env;
   __queryKey?: string;
 };
@@ -200,7 +217,7 @@ type Env = {
 const parseQueryTerm = (term: Term, __env: Env): Json => {
   const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
-    return mutateFn(term, __env, state);
+    return mutateFn([term[0], term[1]], __env, state);
   } else {
     const parser = readDict[term[0]];
     if (parser === undefined) {
@@ -264,7 +281,7 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: Term) {
   return [dispatchKey, params, ...chiRemote];
 }
 
-function parseQueryTermSync(term: Term, result: Json, __env: Env): void {
+function parseQueryTermSync(term: Term, result: Params, __env: Env): void {
   const syncFun = syncDict[term[0]];
   if (syncFun) {
     syncFun(term, result, __env, state);
@@ -320,7 +337,7 @@ function refresh({ skipRemote }) {
     ReactDOM.render(
       <RootComponent
         {...props}
-        transact={(query: Query): void => transact(props, query)}
+        transact={(query: [Tag, Params?][]): void => transact(props, query)}
         render={render}
       />,
       element
@@ -362,7 +379,7 @@ export function parseChildren(
 
 function transact(
   { __env, __query: componentQuery },
-  query: Query,
+  query: [Tag, Params?][],
   _state = state
 ): void {
   const rootQuery = [...query, ...componentQuery].map(queryTerm => {
