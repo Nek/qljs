@@ -19,11 +19,11 @@ const metaParser = (name, dict) => (id, parser) => {
   }
 };
 
-export type ReadParser = (term: Term, env: Env, state: any) => Props;
+export type ReadParser = (term: Term, env: Env, state: any) => Json;
 const readDict: { [tag: string]: ReadParser } = {};
 const read = metaParser("Read", readDict);
 
-export type MutateParser = (term: Term, env: Env, state: any) => Props;
+export type MutateParser = (term: Term, env: Env, state: any) => Json;
 const mutateDict: { [tag: string]: MutateParser } = {};
 const mutate = metaParser("Mutate", mutateDict);
 
@@ -47,13 +47,13 @@ export const parsers = {
   sync
 };
 
-type Props =
+type Json =
   | string
   | number
   | boolean
   | null
-  | { [property: string]: Props }
-  | Props[];
+  | { [property: string]: Json }
+  | Json[];
 
 const render = (
   ctx: QLProps | Array<QLProps>,
@@ -81,7 +81,10 @@ let RootComponent: QLComponent;
 let element: HTMLElement;
 let state: object;
 
-let remoteHandler: (tag: string, params?: object) => Promise<[Term, any][]>;
+let remoteHandler: (
+  tag: string,
+  params?: Params
+) => Promise<Params[]> | boolean;
 
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
@@ -106,7 +109,7 @@ export type QLProps = Attributes & Context & Utils;
 const registry: Map<QLComponent, Query> = new Map();
 
 type Tag = string;
-type Params = object;
+type Params = { [property: string]: Json };
 function isParams(term: unknown | Params): term is Params {
   return Object.prototype.toString.call(term) === "[object Object]";
 }
@@ -194,7 +197,7 @@ type Env = {
   __queryKey?: string;
 };
 
-const parseQueryTerm = (term: Term, __env: Env): Props => {
+const parseQueryTerm = (term: Term, __env: Env): Json => {
   const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
     return mutateFn(term, __env, state);
@@ -208,7 +211,7 @@ const parseQueryTerm = (term: Term, __env: Env): Props => {
   }
 };
 
-const parseQuery = (query: Query, __env: Env): Props[] => {
+const parseQuery = (query: Query, __env: Env): Json[] => {
   if (__env === undefined) {
     return parseQuery(query, {});
   }
@@ -217,9 +220,9 @@ const parseQuery = (query: Query, __env: Env): Props[] => {
 };
 
 function makeProps(
-  res: { [property: string]: Props },
-  [k, v]: [string, Props]
-): { [property: string]: Props } {
+  res: { [property: string]: Json },
+  [k, v]: [string, Json]
+): { [property: string]: Json } {
   return { ...res, [k]: v };
 }
 
@@ -232,7 +235,7 @@ export function parseQueryIntoProps(
   const queryResult = parseQuery(__query, __env);
 
   const props = zip(queryNames, queryResult).reduce<{
-    [property: string]: Props;
+    [property: string]: Json;
   }>(makeProps, {});
   const key = props[queryNames[0]];
   return {
@@ -298,14 +301,15 @@ Call remote handler for a query and zip result to
 function performRemoteQuery(query: Query): void {
   const [firstTerm] = query;
   const [tag, params] = compressTerm(firstTerm);
-  //f (remoteHandler(tag)) {
-  remoteHandler(tag, params).then((results: Params[]) => {
-    zip<Term, Params>(query, results).forEach(([k, v]: [Term, Params]) => {
-      parseQueryTermSync(compressTerm(k), v, {});
+  const remoteResult = remoteHandler(tag, params);
+  if (typeof remoteResult !== "boolean") {
+    remoteResult.then((results: Params[]) => {
+      zip<Term, Params>(query, results).forEach(([k, v]: [Term, Params]) => {
+        parseQueryTermSync(compressTerm(k), v, {});
+      });
+      refresh({ skipRemote: true });
     });
-    refresh({ skipRemote: true });
-  });
-  //}
+  }
 }
 
 function refresh({ skipRemote }) {
