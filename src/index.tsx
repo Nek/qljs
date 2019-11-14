@@ -19,23 +19,23 @@ const metaParser = (name, dict) => (id, parser) => {
   }
 };
 
-export type ReadParser = (term: Term, env: Env, state: any) => Json;
+export type ReadParser = (term: Term, env: Env, state: unknown) => Json;
 const readDict: { [tag: string]: ReadParser } = {};
 const read = metaParser("Read", readDict);
 
-export type MutateParser = (term: Term, env: Env, state: any) => Json;
+export type MutateParser = (term: Term, env: Env, state: unknown) => Json;
 const mutateDict: { [tag: string]: MutateParser } = {};
 const mutate = metaParser("Mutate", mutateDict);
 
-export type RemoteParser = (term: Term, state: any) => Term;
+export type RemoteParser = (term: Term, state: unknown) => Term;
 const remoteDict: { [tag: string]: RemoteParser } = {};
 const remote = metaParser("Remote", remoteDict);
 
 export type SyncParser = (
   term: Term,
-  result: object,
+  result: Json,
   env: Env,
-  state: any
+  state: unknown
 ) => void;
 const syncDict: { [tag: string]: SyncParser } = {};
 const sync = metaParser("Sync", syncDict);
@@ -264,7 +264,7 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: Term) {
   return [dispatchKey, params, ...chiRemote];
 }
 
-function parseQueryTermSync(term: Term, result: object, __env: Env): void {
+function parseQueryTermSync(term: Term, result: Json, __env: Env): void {
   const syncFun = syncDict[term[0]];
   if (syncFun) {
     syncFun(term, result, __env, state);
