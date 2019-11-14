@@ -107,9 +107,19 @@ const registry: Map<QLComponent, Query> = new Map();
 
 type Tag = string;
 type Params = object;
+function isParams(term: unknown | Params): term is Params {
+  return Object.prototype.toString.call(term) === "[object Object]";
+}
 
 type Term = [Tag, Params, ...Term[]];
+function isTerm(curr: Term | Query | QLComponent): curr is Term {
+  return typeof curr[0] === "string";
+}
+
 type Query = Term[];
+function isQuery(curr: Query | QLComponent): curr is Query {
+  return Array.isArray(curr[0]);
+}
 
 type ShortTerm = Tag | [Tag, Params?, ...(Query | Term | QLComponent)[]];
 type ShortQuery = ShortTerm[];
@@ -119,44 +129,10 @@ type StrictlyParametrizedTerm = [
   Params,
   ...(Term | QLComponent | Query)[]
 ];
-
 function isStrictlyParametrizedTerm(
   term: [Tag, ...(Term | QLComponent | Query)[]] | StrictlyParametrizedTerm
 ): term is StrictlyParametrizedTerm {
   return term.length > 1 && isParams(term[1]);
-}
-
-/*
-ShortQuery
-ShortTerm[]
-
-Term
-[Tag, Params, ...Term[]]
-
-Query
-Term[]
-
-ShortTerm
-'todoId' -> Tag
-['todoId'] -> [Tag]
-['todoId', Area, AreaOption] -> [Tag, ...QLComponent[]]
-['todoId', {}] -> [Tag, Params]
-['todoId', {}, Area, AreaOption] -> [Tag, Params, ...QLComponent[]]
-['todoId', {}, Area, [['todoId', {}],['areaId',{}]], Area] -> [Tag, Params, ...(Query | Term | QLComponent)[]]
-['todoId', Area, AreaOption] -> [Tag, ...QLComponent[]]
-['todoId', Area, [['todoId', {}],['areaId',{}]], Area] -> [Tag, Params, ...(Query | Term | QLComponent)[]]
- */
-
-function isParams(term: unknown | Params): term is Params {
-  return Object.prototype.toString.call(term) === "[object Object]";
-}
-
-function isTerm(curr: Term | Query | QLComponent): curr is Term {
-  return typeof curr[0] === "string";
-}
-
-function isQuery(curr: Query | QLComponent): curr is Query {
-  return Array.isArray(curr[0]);
 }
 
 function normalize(rest: (Term | Query | QLComponent)[]): Term[] {
