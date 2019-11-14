@@ -1,8 +1,9 @@
 {
   "name": "qljs",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "UI Data Query Language on top of ReactJS",
-  "main": "lib/qljs.js",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
     "build": "webpack --env dev && webpack --env build",
     "dev": "webpack --progress --colors --watch --env dev",

@@ -4,7 +4,7 @@ module.exports = {
   mode: "development",
   entry: "./src/index.tsx",
   output: {
-    filename: "qljs.js",
+    filename: "index.js",
     path: __dirname + "/lib",
     library: "qljs",
     libraryTarget: "umd"
