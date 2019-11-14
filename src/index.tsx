@@ -226,7 +226,7 @@ function makeProps(
   return { ...res, [k]: v };
 }
 
-export function parseQueryIntoProps(
+function parseQueryIntoProps(
   __query: Query,
   __env: Env = {},
   _state: object = state
@@ -274,7 +274,7 @@ function parseQueryTermSync(term: Term, result: Json, __env: Env): void {
   }
 }
 
-export function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
+function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
   return a1.map((x, i) => [x, a2[i]]);
 }
 
@@ -328,13 +328,13 @@ function refresh({ skipRemote }) {
   }
 }
 
-export function mapDelta(map1: {}, map2: {}): {} {
+function mapDelta(map1: {}, map2: {}): {} {
   return Object.entries(map2)
     .filter(([k, v]) => v !== map1[k])
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {});
 }
 
-export function loopRootQuery(queryTerm: Term, __env?: Env): Term {
+function loopRootQuery(queryTerm: Term, __env?: Env): Term {
   if (__env) {
     const newEnv: Env = {
       ...(__env.__parentEnv ? mapDelta(__env.__parentEnv, __env) : __env),
@@ -360,12 +360,7 @@ export function parseChildren(
   return parseQueryIntoProps(query, newEnv, _state);
 }
 
-export function makeRootQuery(__env: Env, query: Query): Term[] {
-  return query.map(queryTerm => {
-    return loopRootQuery(queryTerm, __env.__parentEnv);
-  });
-}
-export function transact(
+function transact(
   { __env, __query: componentQuery },
   query: Query,
   _state = state

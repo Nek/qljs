@@ -1,19 +1,13 @@
 import {
-  mount,
   clearRegistry,
-  parseQueryIntoProps,
   parseChildren,
-  makeRootQuery,
-  mapDelta,
-  unfoldQuery,
   component,
-  transact,
   parseChildrenRemote,
-  sync,
-  read,
-  mutate,
-  remote
+  init,
+  parsers
 } from "./index.tsx";
+
+const { read, mutate } = parsers;
 
 describe("ql", () => {
   let state;
@@ -229,7 +223,10 @@ describe("ql", () => {
         {
           people: [],
           env: {},
-          query: [["people", { personId: "0" }], ["name", {}]]
+          query: [
+            ["people", { personId: "0" }],
+            ["name", {}]
+          ]
         },
         [["delete", { personId: "0" }]]
       );
