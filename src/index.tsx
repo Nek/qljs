@@ -80,7 +80,8 @@ export type QLComponent = React.FunctionComponent<QLProps>;
 let RootComponent: QLComponent;
 let element: HTMLElement;
 let state: object;
-let remoteHandler: (tag: string, params: object) => Promise<[Term, any][]>;
+
+let remoteHandler: (tag: string, params?: object) => Promise<[Term, any][]>;
 
 type Attributes = {
   [propName: string]: string | number | [] | {} | boolean | Attributes;
@@ -289,7 +290,8 @@ function parseQueryTermSync(term: Term, result: object, __env: Env): void {
   if (syncFun) {
     syncFun(term, result, __env, state);
   } else {
-    parserNoMatch("Sync", term[0]);
+    const hasRemote = remoteHandler(term[0]);
+    hasRemote && parserNoMatch("Sync", term[0]);
   }
 }
 
@@ -318,16 +320,16 @@ function compressTerm(term: Term): Term {
 Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: Query): void {
-  if (remoteHandler) {
-    const [firstTerm] = query;
-    const [tag, params] = compressTerm(firstTerm);
-    remoteHandler(tag, params).then((results: Params[]) => {
-      zip<Term, Params>(query, results).forEach(([k, v]: [Term, Params]) => {
-        parseQueryTermSync(compressTerm(k), v, {});
-      });
-      refresh({ skipRemote: true });
+  const [firstTerm] = query;
+  const [tag, params] = compressTerm(firstTerm);
+  //f (remoteHandler(tag)) {
+  remoteHandler(tag, params).then((results: Params[]) => {
+    zip<Term, Params>(query, results).forEach(([k, v]: [Term, Params]) => {
+      parseQueryTermSync(compressTerm(k), v, {});
     });
-  }
+    refresh({ skipRemote: true });
+  });
+  //}
 }
 
 function refresh({ skipRemote }) {
