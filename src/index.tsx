@@ -175,7 +175,7 @@ function normalize(rest: (Term | Query | QLComponent)[]): Term[] {
   );
 }
 
-function tagToTerm(tag: Tag | unknown[]) {
+function tagToTerm(tag: Tag | ShortTerm) {
   return typeof tag === "string" ? [tag] : tag;
 }
 
