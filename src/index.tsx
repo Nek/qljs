@@ -298,7 +298,10 @@ export function zip<T, U>(a1: Array<T>, a2: Array<U>): (T | U)[][] {
 }
 
 function compressTerm(term: Term): Term {
-  const compressInner = (term: Term, res: { tags: Tag[]; params: any[] }) => {
+  const compressInner = (
+    term: Term,
+    res: { tags: Tag[]; params: Params[] }
+  ) => {
     if (term === undefined) {
       return res;
     } else {
@@ -316,10 +319,10 @@ Call remote handler for a query and zip result to
 */
 function performRemoteQuery(query: Query): void {
   if (remoteHandler) {
-    const [term] = query;
-    const [tag, params] = compressTerm(term);
-    remoteHandler(tag, params).then(results => {
-      zip(query, results).forEach(([k, v]: [Term, any]) => {
+    const [firstTerm] = query;
+    const [tag, params] = compressTerm(firstTerm);
+    remoteHandler(tag, params).then((results: Params[]) => {
+      zip<Term, Params>(query, results).forEach(([k, v]: [Term, Params]) => {
         parseQueryTermSync(compressTerm(k), v, {});
       });
       refresh({ skipRemote: true });
