@@ -112,7 +112,7 @@ export type QLEnv = {
   __env: Env;
   __query: Query;
   render: (
-    ctx: QLEnv | QLEnv[],
+    ctx: QLEnv | QLEnv[] | unknown,
     Component: QLComponent
   ) => JSX.Element | JSX.Element[];
   transact: (query: [Tag, Params?][]) => void;

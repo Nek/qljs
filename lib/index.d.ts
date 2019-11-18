@@ -18,7 +18,7 @@ export declare type QLEnv = {
     key: string;
     __env: Env;
     __query: Query;
-    render: (ctx: QLEnv | QLEnv[], Component: QLComponent) => JSX.Element | JSX.Element[];
+    render: (ctx: QLEnv | QLEnv[] | unknown, Component: QLComponent) => JSX.Element | JSX.Element[];
     transact: (query: [Tag, Params?][]) => void;
 };
 declare type Attributes = {
