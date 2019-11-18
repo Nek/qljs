@@ -1,6 +1,6 @@
 {
   "name": "qljs",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "UI Data Query Language on top of ReactJS",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",

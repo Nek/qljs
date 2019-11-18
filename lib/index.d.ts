@@ -12,19 +12,22 @@ export declare const parsers: {
 export declare type Json = string | number | boolean | null | {
     [property: string]: Json;
 } | Json[];
-export declare type QLComponent = React.FunctionComponent<QLProps>;
-export declare type QLProps = Attributes & Context & Utils;
+export declare type QLComponent = React.FunctionComponent<QLEnv>;
+export declare type QLEnv = {
+    [propName: string]: string | number | [] | {} | boolean | QLEnv | QLEnv[];
+    key: string;
+    __env: Env;
+    __query: Query;
+    render: (ctx: QLEnv | QLEnv[], Component: QLComponent) => JSX.Element | JSX.Element[];
+    transact: (query: [Tag, Params?][]) => void;
+};
 declare type Attributes = {
-    [propName: string]: string | number | [] | {} | boolean | Attributes | QLProps;
+    [propName: string]: string | number | [] | {} | boolean | Attributes;
     key: string;
 };
 declare type Context = {
     __env: Env;
     __query: Query;
-};
-declare type Utils = {
-    render: (ctx: QLProps | Array<QLProps>, Component: QLComponent) => JSX.Element | JSX.Element[];
-    transact: (query: [Tag, Params?][]) => void;
 };
 export declare type Tag = string;
 export declare type Params = {
@@ -34,7 +37,7 @@ export declare type Term = [Tag, Params, ...Term[]];
 export declare type Query = Term[];
 export declare type ShortTerm = Tag | [Tag] | [Tag, Params] | [Tag, ...(Query | Term | QLComponent)[]] | [Tag, Params, ...(Query | Term | QLComponent)[]];
 export declare type ShortQuery = ShortTerm[];
-export declare const component: (dsl: ShortQuery, key: QLComponent) => QLComponent;
+export declare const component: (query: ShortQuery, target: QLComponent) => QLComponent;
 export declare function getQuery(key: QLComponent): Query;
 export declare function clearRegistry(): void;
 export declare type Env = {
@@ -42,7 +45,7 @@ export declare type Env = {
     __queryKey?: string;
 };
 export declare function parseChildrenRemote([dispatchKey, params, ...chi]: Term): (string | Term | Params)[];
-export declare function parseChildren(term: Term, __env: Env, _state?: object): Attributes & Context;
+export declare function parseChildren(term: Term, __env: QLEnv, _state?: object): Attributes & Context;
 export declare function init({ state: _st, remoteHandler: _rh }: {
     state: any;
     remoteHandler: any;

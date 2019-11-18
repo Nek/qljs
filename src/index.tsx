@@ -59,27 +59,43 @@ export type Json =
   | { [property: string]: Json }
   | Json[];
 
+function isQLEnv(env: QLEnv | unknown): env is QLEnv {
+  if (
+    env.hasOwnProperty("key") &&
+    env.hasOwnProperty("__env") &&
+    env.hasOwnProperty("__query") &&
+    env.hasOwnProperty("render") &&
+    env.hasOwnProperty("transact")
+  ) {
+    return true;
+  }
+}
 const render = (
-  ctx: QLProps | Array<QLProps>,
+  ctx: QLEnv | QLEnv[] | unknown,
   Component: QLComponent
-): JSX.Element | JSX.Element[] =>
-  Array.isArray(ctx) ? (
-    ctx.map(ctx => (
+): JSX.Element | JSX.Element[] => {
+  if (Array.isArray(ctx)) {
+    return ctx.map(ctx => (
       <Component
         {...ctx}
         transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
         render={render}
       />
-    ))
-  ) : (
-    <Component
-      {...ctx}
-      transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
-      render={render}
-    />
-  );
+    ));
+  } else if (isQLEnv(ctx)) {
+    return (
+      <Component
+        {...ctx}
+        transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
+        render={render}
+      />
+    );
+  } else {
+    return null;
+  }
+};
 
-export type QLComponent = React.FunctionComponent<QLProps>;
+export type QLComponent = React.FunctionComponent<QLEnv>;
 
 let RootComponent: QLComponent;
 let element: HTMLElement;
@@ -90,32 +106,26 @@ let remoteHandler: (
   params?: Params
 ) => Promise<Params[]> | boolean;
 
-// @ts-ignore
-export type QLProps = Attributes & Context & Utils;
+export type QLEnv = {
+  [propName: string]: string | number | [] | {} | boolean | QLEnv | QLEnv[];
+  key: string;
+  __env: Env;
+  __query: Query;
+  render: (
+    ctx: QLEnv | QLEnv[],
+    Component: QLComponent
+  ) => JSX.Element | JSX.Element[];
+  transact: (query: [Tag, Params?][]) => void;
+};
 
 type Attributes = {
-  [propName: string]:
-    | string
-    | number
-    | []
-    | {}
-    | boolean
-    | Attributes
-    | QLProps;
+  [propName: string]: string | number | [] | {} | boolean | Attributes;
   key: string;
 };
 
 type Context = {
   __env: Env;
   __query: Query;
-};
-
-type Utils = {
-  render: (
-    ctx: QLProps | Array<QLProps>,
-    Component: QLComponent
-  ) => JSX.Element | JSX.Element[];
-  transact: (query: [Tag, Params?][]) => void;
 };
 
 const registry: Map<QLComponent, Query> = new Map();
@@ -171,6 +181,7 @@ function normalize(rest: (Term | Query | QLComponent)[]): Term[] {
   );
 }
 
+// Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
 function tagToTerm(tag: Tag | ShortTerm) {
   return typeof tag === "string" ? [tag] : tag;
 }
@@ -191,14 +202,14 @@ function addParamsAndNormalize(
   }
 }
 
-export const component = (dsl: ShortQuery, key: QLComponent): QLComponent => {
-  const query: Query = dsl
-    // Convert query tag to a Term ['todoId'] -> [['todoId', {}]]
-    .map(tagToTerm)
-    .map(addParamsAndNormalize);
+export const component = (
+  query: ShortQuery,
+  target: QLComponent
+): QLComponent => {
+  const fullQuery: Query = query.map(tagToTerm).map(addParamsAndNormalize);
 
-  registry.set(key, query);
-  return key;
+  registry.set(target, fullQuery);
+  return target;
 };
 
 export function getQuery(key: QLComponent): Query {
@@ -369,7 +380,7 @@ function loopRootQuery(queryTerm: Term, __env?: Env): Term {
 
 export function parseChildren(
   term: Term,
-  __env: Env,
+  __env: QLEnv,
   _state = state
 ): Attributes & Context {
   const [, , ...query] = term;
