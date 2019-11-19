@@ -285,7 +285,7 @@ function parseQueryIntoProps(
 }
 
 function parseQueryRemote(query: Query): Query {
-  const result = query.reduce((acc, term) => {
+  return query.reduce((acc, term) => {
     const remote = remoteDict[term[0]];
     if (remote) {
       const v: Term = remote(term, state);
@@ -294,7 +294,6 @@ function parseQueryRemote(query: Query): Query {
       return acc;
     }
   }, []);
-  return result;
 }
 
 export function parseChildrenRemote([dispatchKey, params, ...chi]: Term) {
