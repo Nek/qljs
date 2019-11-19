@@ -2,7 +2,7 @@ import * as React from "react";
 export declare type ReadParser = (term: Term, env: Params, state: unknown) => Json;
 export declare type MutateParser = (term: [Tag, Params?], env: Params, state: unknown) => Json;
 export declare type RemoteParser = (term: Term, state: unknown) => Term;
-export declare type SyncParser = (term: Term, result: Params, env: Params, state: unknown) => void;
+export declare type SyncParser = (term: Term, result: any, env: Params, state: unknown) => void;
 export declare const parsers: {
     read: (id: any, parser: any) => void;
     mutate: (id: any, parser: any) => void;
@@ -12,23 +12,25 @@ export declare const parsers: {
 export declare type Json = string | number | boolean | null | {
     [property: string]: Json;
 } | Json[];
-export declare type QLComponent = React.FunctionComponent<QLEnv>;
-export declare type QLEnv = {
-    [propName: string]: string | number | [] | {} | boolean | QLEnv | QLEnv[];
-    key: string;
-    __env: Env;
-    __query: Query;
-    render: (ctx: QLEnv | QLEnv[] | unknown, Component: QLComponent) => JSX.Element | JSX.Element[];
-    transact: (query: [Tag, Params?][]) => void;
+declare type TransactQuery = (Tag | [Tag] | [Tag, Params])[];
+export declare type QLComponent = React.FunctionComponent<Props>;
+declare type BasicProps = {
+    [propName: string]: string | number | [] | {} | boolean | BasicProps | BasicProps[] | undefined;
+    key?: string;
+    __env?: BasicProps;
+    __query?: Query;
+    __queryKey?: string;
+    __parentProps?: BasicProps;
 };
-declare type Attributes = {
-    [propName: string]: string | number | [] | {} | boolean | Attributes;
-    key: string;
+declare type Utils = {
+    render: (ctx: BasicProps | BasicProps[] | unknown, Component: QLComponent) => JSX.Element | JSX.Element[];
+    transact: (query: TransactQuery) => void;
 };
 declare type Context = {
-    __env: Env;
+    __env: BasicProps;
     __query: Query;
 };
+export declare type Props = BasicProps & Utils & Context;
 export declare type Tag = string;
 export declare type Params = {
     [property: string]: Json;
@@ -40,12 +42,8 @@ export declare type ShortQuery = ShortTerm[];
 export declare const component: (query: ShortQuery, target: QLComponent) => QLComponent;
 export declare function getQuery(key: QLComponent): Query;
 export declare function clearRegistry(): void;
-export declare type Env = {
-    __parentEnv?: Env;
-    __queryKey?: string;
-};
 export declare function parseChildrenRemote([dispatchKey, params, ...chi]: Term): (string | Term | Params)[];
-export declare function parseChildren(term: Term, __env: QLEnv, _state?: object): Attributes & Context;
+export declare function parseChildren(term: Term, __env: BasicProps & Context, _state?: object): BasicProps & Context;
 export declare function init({ state: _st, remoteHandler: _rh }: {
     state: any;
     remoteHandler: any;

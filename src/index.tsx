@@ -37,7 +37,7 @@ const remote = metaParser("Remote", remoteDict);
 
 export type SyncParser = (
   term: Term,
-  result: Params,
+  result: any,
   env: Params,
   state: unknown
 ) => void;
@@ -59,7 +59,7 @@ export type Json =
   | { [property: string]: Json }
   | Json[];
 
-function isQLEnv(env: QLEnv | unknown): env is QLEnv {
+function isProps(env: Props | unknown): env is Props {
   if (
     env.hasOwnProperty("key") &&
     env.hasOwnProperty("__env") &&
@@ -71,22 +71,25 @@ function isQLEnv(env: QLEnv | unknown): env is QLEnv {
   }
 }
 const render = (
-  ctx: QLEnv | QLEnv[] | unknown,
+  ctx:
+    | (BasicProps & Utils & Context)
+    | (BasicProps & Utils & Context)[]
+    | unknown,
   Component: QLComponent
 ): JSX.Element | JSX.Element[] => {
   if (Array.isArray(ctx)) {
     return ctx.map(ctx => (
       <Component
         {...ctx}
-        transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
+        transact={(query: TransactQuery): void => transact(ctx, query)}
         render={render}
       />
     ));
-  } else if (isQLEnv(ctx)) {
+  } else if (isProps(ctx)) {
     return (
       <Component
         {...ctx}
-        transact={(query: [Tag, Params?][]): void => transact(ctx, query)}
+        transact={(query: ShortQuery): void => transact(ctx, query)}
         render={render}
       />
     );
@@ -95,7 +98,9 @@ const render = (
   }
 };
 
-export type QLComponent = React.FunctionComponent<QLEnv>;
+type TransactQuery = (Tag | [Tag] | [Tag, Params])[];
+
+export type QLComponent = React.FunctionComponent<Props>;
 
 let RootComponent: QLComponent;
 let element: HTMLElement;
@@ -106,27 +111,37 @@ let remoteHandler: (
   params?: Params
 ) => Promise<Params[]> | boolean;
 
-export type QLEnv = {
-  [propName: string]: string | number | [] | {} | boolean | QLEnv | QLEnv[];
-  key: string;
-  __env: Env;
-  __query: Query;
-  render: (
-    ctx: QLEnv | QLEnv[] | unknown,
-    Component: QLComponent
-  ) => JSX.Element | JSX.Element[];
-  transact: (query: [Tag, Params?][]) => void;
+type BasicProps = {
+  [propName: string]:
+    | string
+    | number
+    | []
+    | {}
+    | boolean
+    | BasicProps
+    | BasicProps[]
+    | undefined;
+  key?: string;
+  __env?: BasicProps;
+  __query?: Query;
+  __queryKey?: string;
+  __parentProps?: BasicProps;
 };
 
-type Attributes = {
-  [propName: string]: string | number | [] | {} | boolean | Attributes;
-  key: string;
+type Utils = {
+  render: (
+    ctx: BasicProps | BasicProps[] | unknown,
+    Component: QLComponent
+  ) => JSX.Element | JSX.Element[];
+  transact: (query: TransactQuery) => void;
 };
 
 type Context = {
-  __env: Env;
+  __env: BasicProps;
   __query: Query;
 };
+
+export type Props = BasicProps & Utils & Context;
 
 const registry: Map<QLComponent, Query> = new Map();
 
@@ -220,12 +235,7 @@ export function clearRegistry(): void {
   registry.clear();
 }
 
-export type Env = {
-  __parentEnv?: Env;
-  __queryKey?: string;
-};
-
-const parseQueryTerm = (term: Term, __env: Env): Json => {
+const parseQueryTerm = (term: Term, __env: BasicProps): Json => {
   const mutateFn = mutateDict[term[0]];
   if (mutateFn) {
     return mutateFn([term[0], term[1]], __env, state);
@@ -239,7 +249,7 @@ const parseQueryTerm = (term: Term, __env: Env): Json => {
   }
 };
 
-const parseQuery = (query: Query, __env: Env): Json[] => {
+const parseQuery = (query: Query, __env: BasicProps): Json[] => {
   if (__env === undefined) {
     return parseQuery(query, {});
   }
@@ -256,9 +266,9 @@ function makeProps(
 
 function parseQueryIntoProps(
   __query: Query,
-  __env: Env = {},
+  __env: BasicProps = {},
   _state: object = state
-): Attributes & Context {
+): BasicProps & Context {
   const queryNames: string[] = __query.map(v => v[0]);
   const queryResult = parseQuery(__query, __env);
 
@@ -292,7 +302,11 @@ export function parseChildrenRemote([dispatchKey, params, ...chi]: Term) {
   return [dispatchKey, params, ...chiRemote];
 }
 
-function parseQueryTermSync(term: Term, result: Params, __env: Env): void {
+function parseQueryTermSync(
+  term: Term,
+  result: Params,
+  __env: BasicProps
+): void {
   const syncFun = syncDict[term[0]];
   if (syncFun) {
     syncFun(term, result, __env, state);
@@ -348,7 +362,7 @@ function refresh({ skipRemote }) {
     ReactDOM.render(
       <RootComponent
         {...props}
-        transact={(query: [Tag, Params?][]): void => transact(props, query)}
+        transact={(query: ShortQuery): void => transact(props, query)}
         render={render}
       />,
       element
@@ -362,16 +376,16 @@ function mapDelta(map1: {}, map2: {}): {} {
     .reduce((res, [k, v]) => ({ ...res, [k]: v }), {});
 }
 
-function loopRootQuery(queryTerm: Term, __env?: Env): Term {
+function loopRootQuery(queryTerm: Term, __env?: BasicProps): Term {
   if (__env) {
-    const newEnv: Env = {
-      ...(__env.__parentEnv ? mapDelta(__env.__parentEnv, __env) : __env),
-      __parentEnv: undefined,
+    const newProps: BasicProps = {
+      ...(__env.__parentProps ? mapDelta(__env.__parentProps, __env) : __env),
+      __parentProps: undefined,
       __queryKey: undefined
     };
     return loopRootQuery(
-      [__env.__queryKey, newEnv, queryTerm],
-      __env.__parentEnv
+      [__env.__queryKey, newProps, queryTerm],
+      __env.__parentProps
     );
   } else {
     return queryTerm;
@@ -380,21 +394,26 @@ function loopRootQuery(queryTerm: Term, __env?: Env): Term {
 
 export function parseChildren(
   term: Term,
-  __env: QLEnv,
+  __env: BasicProps & Context,
   _state = state
-): Attributes & Context {
+): BasicProps & Context {
   const [, , ...query] = term;
-  const newEnv = { ...__env, __parentEnv: { ...__env, __queryKey: term[0] } };
-  return parseQueryIntoProps(query, newEnv, _state);
+  const newProps = {
+    ...__env,
+    __parentProps: { ...__env, __queryKey: term[0] }
+  };
+  return parseQueryIntoProps(query, newProps, _state);
 }
 
 function transact(
-  { __env, __query: componentQuery },
-  query: [Tag, Params?][],
+  { __env, __query: componentQuery }: BasicProps & Context,
+  query: ShortQuery,
   _state = state
 ): void {
-  const rootQuery = [...query, ...componentQuery].map(queryTerm => {
-    return loopRootQuery(queryTerm, __env.__parentEnv);
+  const fullQuery: Query = query.map(tagToTerm).map(addParamsAndNormalize);
+
+  const rootQuery = [...fullQuery, ...componentQuery].map(queryTerm => {
+    return loopRootQuery(queryTerm, __env.__parentProps);
   });
   parseQuery(rootQuery, __env);
   performRemoteQuery(parseQueryRemote(rootQuery));
