@@ -3,7 +3,7 @@
 
 # QLJS
 
-QLJS is a non-verbatim clone of ClojureScript web development framework QLKit. It relies on React for component rendering and makes use of a query language comparable to GraphQL to encapsulate components and to optimize server calls. It is lighweight with no outside dependencies (besides React).
+Proof of concept non-verbatim clone of ClojureScript front-end library QLKit. It relies on React for component rendering and uses a query language comparable to GraphQL to encapsulate components and optimize server calls. It is lightweight with no outside dependencies (besides React).
 
 TBD
 - API documentation
